@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Samjha Do — Legal Documents in Plain Hindi & English</title>
+<meta name="description" content="Upload any legal document — rent agreement, job offer, insurance policy, loan paper, court notice. AI explains it in Hindi / English / Hinglish, flags traps, tells you what to ask before signing. 100% private — runs entirely in your browser." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root { --brand: #ea580c; --brand2: #b91c1c; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: linear-gradient(135deg,#fff7ed 0%,#fef2f2 100%); min-height:100vh; }
+  .devanagari { font-family: 'Noto Sans Devanagari','Inter',sans-serif; line-height: 1.8; }
+  .gradient-text { background: linear-gradient(90deg,#ea580c,#b91c1c); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(234,88,12,0.08); }
+  .btn-primary { background: linear-gradient(90deg,#ea580c,#b91c1c); color:#fff; }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .red-flag { background: #fef2f2; border-left: 4px solid #dc2626; }
+  .green-ok { background: #f0fdf4; border-left: 4px solid #16a34a; }
+  .ask-q    { background: #eff6ff; border-left: 4px solid #2563eb; }
+  .pulse-dot { width:8px; height:8px; border-radius:999px; background:#16a34a; display:inline-block; box-shadow:0 0 0 0 rgba(22,163,74,0.6); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(22,163,74,0.6);} 70%{box-shadow:0 0 0 10px rgba(22,163,74,0);} 100%{box-shadow:0 0 0 0 rgba(22,163,74,0);} }
+  .tab-active { background: linear-gradient(90deg,#ea580c,#b91c1c); color:#fff; }
+  .dragover { border-color:#ea580c !important; background:#fff7ed !important; }
+  .progress-bar { height: 8px; background: #fed7aa; border-radius: 999px; overflow:hidden; }
+  .progress-bar > div { height: 100%; background: linear-gradient(90deg,#ea580c,#b91c1c); transition: width .3s; }
+</style>
+</head>
+<body class="text-slate-800">
+
+<header class="max-w-6xl mx-auto px-4 pt-8 pb-4 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-11 h-11 rounded-2xl btn-primary flex items-center justify-center text-white text-xl font-bold">स</div>
+    <div>
+      <h1 class="text-2xl font-bold">Samjha Do <span class="text-sm font-normal text-slate-500">समझा दो</span></h1>
+      <p class="text-xs text-slate-500">Legal docs in plain Hindi & English · 100% private</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="modelStatus" class="text-xs text-slate-500 hidden md:inline-flex items-center gap-2"><span class="pulse-dot"></span><span id="modelLabel">Initializing…</span></span>
+    <select id="modelPicker" class="text-xs border border-slate-300 rounded-lg px-2 py-2 hidden md:block">
+      <option value="auto">Auto · Cloudflare AI, then Pollinations</option>
+      <option value="cf">Cloudflare Workers AI (Llama 3.3 70B)</option>
+      <option value="pollinations">Pollinations (free public AI)</option>
+    </select>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 pb-16">
+
+  <!-- FILE:// WARNING -->
+  <section id="fileProtoWarn" class="hidden card p-4 mb-4 border-l-4 border-amber-500 bg-amber-50">
+    <h3 class="font-semibold text-amber-900">⚠️ Open via a local server, not by double-clicking</h3>
+    <p class="text-sm text-amber-900 mt-1">You opened this page as a <code>file://</code> URL. Browsers block WebGPU, OCR workers and module imports on file URLs. Fix in 10 seconds:</p>
+    <pre class="bg-white/70 rounded p-2 text-xs mt-2 overflow-x-auto">cd /path/to/samjha-do
+python3 -m http.server 8000
+# then open http://localhost:8000</pre>
+  </section>
+
+
+  <!-- HERO -->
+  <section class="text-center py-8">
+    <h2 class="text-4xl md:text-5xl font-bold leading-tight">
+      Don't sign what you <span class="gradient-text">don't understand</span>
+    </h2>
+    <p class="mt-3 text-slate-600 max-w-2xl mx-auto">
+      Upload any legal document — rent agreement, job offer, insurance, loan, court notice. Get a plain explanation in Hindi, English, or Hinglish. We flag the traps. We tell you what to ask before signing.
+    </p>
+    <p class="mt-2 devanagari text-slate-700">जो समझ नहीं आता, उसपर साइन मत करो। हम आसान भाषा में समझाएँगे।</p>
+    <p class="mt-4 text-xs text-slate-500">⚡ Zero setup for users · No API keys · Powered by Cloudflare Workers AI free tier · Open source</p>
+  </section>
+
+
+  <!-- UPLOAD -->
+  <section id="uploadSection" class="card p-6 md:p-8">
+    <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 md:p-12 text-center transition-all">
+      <div class="text-5xl mb-3">📄</div>
+      <h3 class="text-xl font-semibold">Upload your document</h3>
+      <p class="text-slate-500 text-sm mt-1">PDF, Word (.docx), Image (JPG/PNG), or Text — up to 20 MB</p>
+      <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" class="hidden" />
+      <div class="mt-5 flex flex-col sm:flex-row gap-3 justify-center">
+        <button id="pickFileBtn" class="btn-primary px-6 py-3 rounded-xl font-semibold">Choose file</button>
+        <button id="pasteBtn" class="px-6 py-3 rounded-xl border border-slate-300 hover:bg-slate-50 font-semibold">Paste text instead</button>
+      </div>
+      <p class="text-xs text-slate-400 mt-4">Your document is analysed entirely on your device. It never touches any server.</p>
+    </div>
+
+    <div id="pasteArea" class="hidden mt-4">
+      <textarea id="pasteText" rows="8" class="w-full border border-slate-300 rounded-xl p-3 text-sm" placeholder="Paste your document text here..."></textarea>
+      <div class="mt-2 flex gap-2 justify-end">
+        <button id="cancelPaste" class="px-4 py-2 rounded-lg border border-slate-300 text-sm">Cancel</button>
+        <button id="submitPaste" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">Analyze →</button>
+      </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+      <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">🏠</div><div class="text-xs mt-1 font-medium">Rent / Lease</div></div>
+      <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">💼</div><div class="text-xs mt-1 font-medium">Offer Letter</div></div>
+      <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">💰</div><div class="text-xs mt-1 font-medium">Loan / Insurance</div></div>
+      <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">⚖️</div><div class="text-xs mt-1 font-medium">Court Notice</div></div>
+    </div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="progressSection" class="card p-8 mt-6 hidden text-center">
+    <div class="inline-block w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin"></div>
+    <p id="progressText" class="mt-4 font-medium">Working…</p>
+    <p id="progressSub" class="text-xs text-slate-500 mt-1"></p>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="resultsSection" class="hidden mt-6 space-y-6">
+
+    <div class="card p-6">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-500">Document type</p>
+          <h3 id="docType" class="text-2xl font-bold">—</h3>
+          <p id="docSummary" class="text-slate-600 mt-1 text-sm">—</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="speakBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm flex items-center gap-2">🔊 <span>Speak</span></button>
+          <button id="stopSpeakBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm hidden">⏹ Stop</button>
+          <button id="resetBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">↺ New document</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-2 inline-flex gap-1" id="langTabs">
+      <button data-lang="hi" class="lang-tab px-4 py-2 rounded-lg text-sm font-medium tab-active">हिंदी</button>
+      <button data-lang="en" class="lang-tab px-4 py-2 rounded-lg text-sm font-medium">English</button>
+      <button data-lang="hg" class="lang-tab px-4 py-2 rounded-lg text-sm font-medium">Hinglish</button>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">📖 Plain explanation</h3>
+      <div id="explanation" class="prose max-w-none text-slate-700 leading-relaxed"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">🔑 Key terms (numbers, dates, names)</h3>
+      <div id="keyTerms" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">🚩 Red flags & traps</h3>
+      <div id="redFlags" class="space-y-3"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">❓ Ask before you sign</h3>
+      <div id="questions" class="space-y-3"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">⚖️ Is this document legally proper?</h3>
+      <div id="legality" class="space-y-3"></div>
+      <p class="text-xs text-slate-400 mt-4 italic">This is an AI explanation, not legal advice. For high-stakes decisions, consult a lawyer.</p>
+    </div>
+  </section>
+
+  <!-- ERROR -->
+  <section id="errorSection" class="card p-6 mt-6 hidden border-l-4 border-red-500">
+    <h3 class="font-semibold text-red-700">Something went wrong</h3>
+    <p id="errorText" class="text-sm text-slate-600 mt-1 whitespace-pre-line"></p>
+    <div id="errorActions" class="mt-3 flex flex-wrap gap-2">
+      <button id="errorRetry"     class="px-4 py-2 rounded-lg btn-primary text-sm font-semibold">Try again</button>
+      <button id="errorClearCache" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hidden">🧹 Clear model cache & retry</button>
+      <button id="errorSwitchModel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hidden">↻ Try a different model</button>
+    </div>
+  </section>
+</main>
+
+<footer class="max-w-6xl mx-auto px-4 py-8 text-center text-xs text-slate-500">
+  Samjha Do · Open source · 100% private · Powered by WebLLM + WebGPU · Made for India 🇮🇳 · Not legal advice
+</footer>
+
+<script>
+/* ==================================================================
+   Samjha Do — 100% client-side, WebGPU-only
+   No API keys. No servers. No cloud. Model cached in browser.
+   ================================================================== */
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const $ = id => document.getElementById(id);
+const IS_FILE_PROTO = location.protocol === 'file:';
+if (IS_FILE_PROTO) $('fileProtoWarn').classList.remove('hidden');
+
+const state = {
+  rawText: '',
+  analysis: null,
+  lang: 'hi',
+  backend: localStorage.getItem('samjha_backend') || 'auto'
+};
+
+// Cloudflare Pages Function endpoint (same origin). If you deploy the worker
+// separately, override by appending  ?api=https://your-worker.workers.dev/api/ai
+// to the URL, or set window.SAMJHA_API in a custom build.
+const CF_API = new URLSearchParams(location.search).get('api')
+            || window.SAMJHA_API
+            || '/api/ai';
+
+$('modelPicker').value = state.backend;
+$('modelPicker').addEventListener('change', e => {
+  state.backend = e.target.value;
+  localStorage.setItem('samjha_backend', state.backend);
+  setStatus('Backend: ' + state.backend);
+});
+
+function setStatus(t){ $('modelLabel').textContent = t; }
+
+/* ---------- File handling ---------- */
+const dropZone = $('dropZone');
+['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); }));
+dropZone.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) handleFile(f); });
+$('pickFileBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { const f = e.target.files[0]; if (f) handleFile(f); };
+$('pasteBtn').onclick = () => { $('pasteArea').classList.remove('hidden'); };
+$('cancelPaste').onclick = () => { $('pasteArea').classList.add('hidden'); $('pasteText').value=''; };
+$('submitPaste').onclick = () => { const t = $('pasteText').value.trim(); if (t.length<20) return alert('Please paste at least a few sentences.'); processText(t); };
+$('resetBtn').onclick = () => location.reload();
+$('errorRetry').onclick = () => { $('errorSection').classList.add('hidden'); $('uploadSection').classList.remove('hidden'); };
+$('errorClearCache').onclick = async () => {
+  try {
+    setStatus('Clearing cache…');
+    // Drop webllm engine
+    try { if (state.engine && state.engine.unload) await state.engine.unload(); } catch(_){}
+    state.engine = null; state.engineModel = null;
+    // Clear caches & IndexedDB for this origin
+    if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      await Promise.all((dbs||[]).map(d => new Promise(res => { const r = indexedDB.deleteDatabase(d.name); r.onsuccess=r.onerror=r.onblocked=()=>res(); })));
+    } else {
+      ['webllm/model','webllm/wasm','webllm/config'].forEach(n => { try { indexedDB.deleteDatabase(n); } catch(_){} });
+    }
+    alert('Cache cleared. The page will reload.');
+    location.reload();
+  } catch(e){ alert('Could not clear cache: '+e.message); }
+};
+$('errorSwitchModel').onclick = () => {
+  // Rotate to the Llama 3.2 1B (smallest, most reliable) and retry
+  const picker = $('modelPicker');
+  picker.value = 'Llama-3.2-1B-Instruct-q4f32_1-MLC';
+  state.selectedModel = picker.value;
+  localStorage.setItem('samjha_model', state.selectedModel);
+  state.engine = null; state.engineModel = null;
+  $('errorSection').classList.add('hidden');
+  if (state.rawText) processText(state.rawText); else $('uploadSection').classList.remove('hidden');
+};
+
+async function handleFile(file){
+  if (file.size > 20*1024*1024) return showError('File is too large (>20 MB).');
+  const ext = (file.name.split('.').pop()||'').toLowerCase();
+  const needsWorker = ['pdf','jpg','jpeg','png','webp'].includes(ext);
+  if (IS_FILE_PROTO && needsWorker) {
+    return showError('PDFs / images need a local server (file:// blocks workers). Run  python3 -m http.server  in this folder and open http://localhost:8000');
+  }
+  showProgress('Reading your document…', file.name);
+  try {
+    let text = '';
+    if (ext === 'pdf') text = await extractPdf(file);
+    else if (ext === 'docx') text = await extractDocx(file);
+    else if (ext === 'txt') text = await file.text();
+    else if (['jpg','jpeg','png','webp'].includes(ext)) text = await extractImage(file);
+    else return showError('Unsupported file type.');
+    if (!text || text.trim().length < 20) return showError('Could not read enough text from this file. Try a clearer PDF or image.');
+    processText(text);
+  } catch(err){
+    console.error(err);
+    showError(err.message || 'Failed to read the file.');
+  }
+}
+
+async function extractPdf(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let i=1; i<=pdf.numPages; i++){
+    setProgressSub(`Page ${i} of ${pdf.numPages}…`);
+    const p = await pdf.getPage(i);
+    const tc = await p.getTextContent();
+    out += tc.items.map(it => it.str).join(' ') + '\n\n';
+  }
+  if (out.trim().length < 50) {
+    setProgressSub('PDF looks scanned — running OCR…');
+    return await ocrPdf(pdf);
+  }
+  return out;
+}
+
+async function ocrPdf(pdf){
+  const maxPages = Math.min(pdf.numPages, 15);
+  setProgressSub('Loading OCR engine…');
+  const worker = await Tesseract.createWorker(['eng','hin'], 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+    langPath:   'https://tessdata.projectnaptha.com/4.0.0'
+  });
+  let out = '';
+  try {
+    for (let i=1; i<=maxPages; i++){
+      setProgressSub(`OCR page ${i} of ${maxPages}…`);
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      const { data } = await worker.recognize(dataUrl);
+      out += data.text + '\n\n';
+    }
+  } finally { await worker.terminate(); }
+  return out;
+}
+
+async function extractDocx(file){
+  const buf = await file.arrayBuffer();
+  const r = await mammoth.extractRawText({ arrayBuffer: buf });
+  return r.value;
+}
+
+async function fileToDataURL(file){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = () => rej(new Error('Could not read file'));
+    fr.readAsDataURL(file);
+  });
+}
+
+async function extractImage(file){
+  setProgressSub('Loading OCR engine (first time ~20s)…');
+  const worker = await Tesseract.createWorker(['eng','hin'], 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+    langPath:   'https://tessdata.projectnaptha.com/4.0.0',
+    logger: m => { if (m.status) setProgressSub('OCR · ' + m.status + (m.progress ? ' ' + Math.round(m.progress*100)+'%' : '')); }
+  });
+  try {
+    const dataUrl = await fileToDataURL(file);
+    const { data } = await worker.recognize(dataUrl);
+    return data.text;
+  } finally { await worker.terminate(); }
+}
+
+/* ---------- Cloudflare Workers AI (via same-origin Pages Function) ---------- */
+async function runWithCloudflare(prompt){
+  setStatus('Cloudflare Workers AI…');
+  const r = await fetch(CF_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  if (!r.ok) {
+    let msg = 'HTTP ' + r.status;
+    try { const j = await r.json(); if (j.error) msg = j.error; } catch(_){}
+    throw new Error(msg);
+  }
+  const j = await r.json();
+  if (!j.text) throw new Error('Empty response from Cloudflare AI');
+  setStatus('Ready · CF ' + (j.model || 'Workers AI'));
+  return j.text;
+}
+
+/* ---------- Pollinations (free public AI, no key) ---------- */
+const POLL_MODELS = ['openai','openai-fast','mistral','llama','deepseek','openai-large'];
+
+async function runWithPollinations(prompt){
+  let lastErr;
+  for (const model of POLL_MODELS){
+    setStatus('Pollinations · ' + model);
+    for (const url of ['https://text.pollinations.ai/openai','https://text.pollinations.ai/']){
+      try {
+        const r = await fetch(url, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            model,
+            messages:[
+              { role:'system', content:'You are Samjha Do. Respond with valid JSON only.' },
+              { role:'user', content: prompt }
+            ],
+            temperature: 0.2,
+            jsonMode: true,
+            private: true,
+            referrer: 'samjha-do'
+          })
+        });
+        if (!r.ok) { lastErr = new Error('HTTP '+r.status); continue; }
+        const ct = r.headers.get('content-type') || '';
+        let txt;
+        if (ct.includes('application/json')){
+          const j = await r.json();
+          txt = j.choices?.[0]?.message?.content || j.content || j.response || '';
+        } else {
+          txt = await r.text();
+        }
+        if (txt && txt.trim().length > 10) { setStatus('Ready · Pollinations ' + model); return txt; }
+      } catch(e){ lastErr = e; }
+    }
+  }
+  // Last-resort GET
+  try {
+    setStatus('Pollinations · GET fallback');
+    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt) + '?model=openai&json=true&private=true&referrer=samjha-do';
+    const r = await fetch(url);
+    if (r.ok) return await r.text();
+  } catch(e){ lastErr = e; }
+  throw lastErr || new Error('Pollinations did not respond');
+}
+
+async function runAI(prompt){
+  const mode = state.backend || 'auto';
+  if (mode === 'cf') return await runWithCloudflare(prompt);
+  if (mode === 'pollinations') return await runWithPollinations(prompt);
+  // auto: Cloudflare first (fast, high quality), fall back to Pollinations
+  try { return await runWithCloudflare(prompt); }
+  catch(e){
+    console.warn('Cloudflare AI failed, falling back to Pollinations:', e);
+    setStatus('CF unavailable, using Pollinations…');
+    return await runWithPollinations(prompt);
+  }
+}
+
+/* ---------- Core ---------- */
+function showProgress(t, sub){
+  $('uploadSection').classList.add('hidden');
+  $('errorSection').classList.add('hidden');
+  $('resultsSection').classList.add('hidden');
+  $('progressSection').classList.remove('hidden');
+  $('progressText').textContent = t;
+  $('progressSub').textContent = sub || '';
+}
+function setProgressSub(s){ $('progressSub').textContent = s; }
+function showError(m, opts){
+  opts = opts || {};
+  $('progressSection').classList.add('hidden');
+  $('uploadSection').classList.add('hidden');
+  $('errorSection').classList.remove('hidden');
+  $('errorText').textContent = m;
+  $('errorClearCache').classList.toggle('hidden', !opts.offerClearCache);
+  $('errorSwitchModel').classList.toggle('hidden', !opts.offerSwitchModel);
+}
+
+
+async function processText(text){
+  state.rawText = text.slice(0, 10000);
+  try {
+    showProgress('Analyzing with AI…', state.backend === 'pollinations' ? 'Using Pollinations (free public AI)' : 'Using Cloudflare Workers AI (free tier)');
+    const prompt = buildPrompt(state.rawText);
+    const txt = await runAI(prompt);
+    const json = parseJson(txt);
+    if (!json || !json.doc_type) throw new Error('The AI returned an unparseable response. Try again — or switch the backend in the dropdown (top right).');
+    state.analysis = json;
+    renderResults();
+  } catch(err){
+    console.error(err);
+    showError(err.message || 'Analysis failed.');
+  }
+}
+
+function buildPrompt(text){
+  return `Analyse the document and respond ONLY with valid JSON matching this schema (no markdown, no code fences, no prose):
+
+{
+  "doc_type": "Rent Agreement | Job Offer Letter | Loan Agreement | Insurance Policy | Court Summons | NDA | Other",
+  "one_line": { "hi": "<Devanagari Hindi>", "en": "<English>", "hg": "<Hinglish Roman>" },
+  "explanation": {
+    "hi": "<plain Devanagari Hindi, 4-6 short paragraphs, no jargon>",
+    "en": "<same in simple English>",
+    "hg": "<Hinglish, Roman-script Hindi mixed with English>"
+  },
+  "key_terms": [ { "label_en":"Monthly rent", "label_hi":"मासिक किराया", "value":"₹25,000" } ],
+  "red_flags": [ { "severity":"high|medium|low", "title_en":"", "title_hi":"", "detail_en":"", "detail_hi":"", "detail_hg":"" } ],
+  "questions":  [ { "q_en":"", "q_hi":"", "q_hg":"", "why_en":"" } ],
+  "legality":   [ { "status":"ok|warning|missing", "label_en":"", "label_hi":"", "note_en":"", "note_hi":"", "note_hg":"" } ]
+}
+
+Rules:
+- JSON only.
+- Hindi MUST be in Devanagari script.
+- Hinglish = Roman-script Hindi mixed with English (casual, like urban Indians text).
+- Cite actual numbers / clauses from the document; do not invent facts.
+- Include 4-8 key_terms, 0-6 red_flags, 4-6 questions, 3-5 legality items.
+
+DOCUMENT:
+"""
+${text}
+"""`;
+}
+
+function parseJson(s){
+  if (!s) return null;
+  s = s.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a<0 || b<0) return null;
+  try { return JSON.parse(s.slice(a, b+1)); } catch { return null; }
+}
+
+/* ---------- Render ---------- */
+function renderResults(){
+  $('progressSection').classList.add('hidden');
+  $('resultsSection').classList.remove('hidden');
+  const a = state.analysis;
+  $('docType').textContent = a.doc_type || 'Document';
+  renderForLang(state.lang);
+  const kt = $('keyTerms'); kt.innerHTML='';
+  (a.key_terms||[]).forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl border border-slate-200';
+    div.innerHTML = `<div class="text-xs text-slate-500">${escapeHtml(t.label_en||'')} <span class="devanagari">${escapeHtml(t.label_hi||'')}</span></div><div class="font-semibold mt-1">${escapeHtml(t.value||'')}</div>`;
+    kt.appendChild(div);
+  });
+}
+
+function renderForLang(lang){
+  state.lang = lang;
+  document.querySelectorAll('.lang-tab').forEach(b => b.classList.toggle('tab-active', b.dataset.lang===lang));
+  const a = state.analysis;
+  const isHi = lang==='hi';
+  const cls = isHi ? 'devanagari' : '';
+
+  $('docSummary').className = 'mt-1 text-sm text-slate-600 ' + cls;
+  $('docSummary').textContent = (a.one_line && a.one_line[lang]) || '';
+
+  const exp = (a.explanation && a.explanation[lang]) || '';
+  $('explanation').className = 'prose max-w-none text-slate-700 leading-relaxed ' + cls;
+  $('explanation').innerHTML = exp.split(/\n+/).map(p => `<p class="mb-3">${escapeHtml(p)}</p>`).join('');
+
+  const rf = $('redFlags'); rf.innerHTML='';
+  (a.red_flags||[]).forEach(f => {
+    const sev = f.severity==='high'?'🔴':f.severity==='medium'?'🟠':'🟡';
+    const title = isHi ? (f.title_hi||f.title_en) : f.title_en;
+    const detail = f['detail_'+lang] || f.detail_en || '';
+    const div = document.createElement('div');
+    div.className = 'red-flag p-4 rounded-r-xl';
+    div.innerHTML = `<div class="font-semibold">${sev} ${escapeHtml(title||'')}</div><div class="text-sm mt-1 ${cls}">${escapeHtml(detail)}</div>`;
+    rf.appendChild(div);
+  });
+  if (!(a.red_flags||[]).length) rf.innerHTML = `<div class="green-ok p-4 rounded-r-xl text-sm">✅ ${isHi?'कोई बड़ा रेड फ्लैग नहीं मिला।': lang==='en' ? 'No major red flags detected.' : 'Koi bada red flag nahi mila.'}</div>`;
+
+  const qs = $('questions'); qs.innerHTML='';
+  (a.questions||[]).forEach(q => {
+    const text = q['q_'+lang] || q.q_en;
+    const div = document.createElement('div');
+    div.className = 'ask-q p-4 rounded-r-xl';
+    div.innerHTML = `<div class="font-medium ${cls}">❓ ${escapeHtml(text||'')}</div>${q.why_en?`<div class="text-xs text-slate-500 mt-1">${escapeHtml(q.why_en)}</div>`:''}`;
+    qs.appendChild(div);
+  });
+
+  const lg = $('legality'); lg.innerHTML='';
+  (a.legality||[]).forEach(l => {
+    const ic = l.status==='ok'?'✅':l.status==='warning'?'⚠️':'❌';
+    const bg = l.status==='ok'?'green-ok':'red-flag';
+    const lbl = isHi ? (l.label_hi||l.label_en) : l.label_en;
+    const note = l['note_'+lang] || l.note_en || '';
+    const div = document.createElement('div');
+    div.className = bg + ' p-4 rounded-r-xl';
+    div.innerHTML = `<div class="font-semibold">${ic} ${escapeHtml(lbl||'')}</div><div class="text-sm mt-1 ${cls}">${escapeHtml(note)}</div>`;
+    lg.appendChild(div);
+  });
+}
+
+document.querySelectorAll('.lang-tab').forEach(b => b.onclick = () => renderForLang(b.dataset.lang));
+
+/* ---------- TTS ---------- */
+$('speakBtn').onclick = () => {
+  if (!('speechSynthesis' in window)) return alert('Your browser does not support text-to-speech.');
+  speechSynthesis.cancel();
+  const a = state.analysis; if (!a) return;
+  const text = (a.explanation && a.explanation[state.lang]) || '';
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = state.lang==='hi' ? 'hi-IN' : 'en-IN';
+  u.rate = 0.95;
+  const voices = speechSynthesis.getVoices();
+  const v = voices.find(v => v.lang.startsWith(u.lang)) || voices.find(v => v.lang.startsWith('hi')) || voices.find(v => v.lang.startsWith('en'));
+  if (v) u.voice = v;
+  u.onend = () => { $('stopSpeakBtn').classList.add('hidden'); $('speakBtn').classList.remove('hidden'); };
+  speechSynthesis.speak(u);
+  $('speakBtn').classList.add('hidden'); $('stopSpeakBtn').classList.remove('hidden');
+};
+$('stopSpeakBtn').onclick = () => { speechSynthesis.cancel(); $('stopSpeakBtn').classList.add('hidden'); $('speakBtn').classList.remove('hidden'); };
+
+function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// initial status
+setStatus('Ready · Cloudflare Workers AI');
+</script>
+</body>
+</html>

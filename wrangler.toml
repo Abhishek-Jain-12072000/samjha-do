@@ -1,0 +1,11 @@
+# Optional — only needed if you deploy via `wrangler pages deploy` from CLI.
+# If you connect this repo to Cloudflare Pages through the dashboard, this file
+# is ignored and you configure the AI binding in the Pages UI instead.
+
+name = "samjha-do"
+compatibility_date = "2024-09-01"
+pages_build_output_dir = "."
+
+# AI binding for Workers AI. Available to the Pages Function as env.AI
+[ai]
+binding = "AI"
