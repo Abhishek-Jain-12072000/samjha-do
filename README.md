@@ -19,8 +19,10 @@ Upload a rent agreement, offer letter, insurance policy, loan paper, or court no
 
 ## Deploy to Cloudflare Pages (free, ~3 min)
 
+> **Important:** Do **not** add a `wrangler.toml` to the repo before deploying via the dashboard — its presence makes Cloudflare run the Workers deploy command instead of the Pages build, which fails with `main = "src/index.ts"` errors. This folder deliberately omits it.
+
 ### 1. Push this folder to GitHub
-Any free GitHub repo works. No workflow or build step needed.
+Any free GitHub repo. No workflow, no build step, no config file.
 
 ### 2. Create the Pages project
 1. Sign in at [dash.cloudflare.com](https://dash.cloudflare.com) (free account)
@@ -29,27 +31,37 @@ Any free GitHub repo works. No workflow or build step needed.
 4. Build settings:
    - Framework preset: **None**
    - Build command: *(leave empty)*
-   - Build output directory: `/`
+   - Build output directory: `/` (or leave empty)
+   - Root directory: `/`
 5. Click **Save and Deploy**
 
-Your site is now live at `https://samjha-do.pages.dev` (or your custom subdomain).
+Your site is now live at `https://samjha-do.pages.dev`.
 
 ### 3. Add the Workers AI binding (the one crucial step)
-1. Open your Pages project → **Settings → Functions → Bindings**
-2. **Add binding → Workers AI**
+1. Open your Pages project → **Settings → Bindings** (older UI: **Settings → Functions → Bindings**)
+2. **Add → Workers AI**
 3. Variable name: `AI` (exactly this — the function reads `env.AI`)
 4. Save
-5. Go to **Deployments** → redeploy the latest (bindings only apply to new deployments)
+5. Go to **Deployments** → click the three-dot menu on the latest deployment → **Retry deployment** (bindings only apply to new deployments)
 
-Done. The site at `https://samjha-do.pages.dev` is fully functional. End users upload a document, the browser calls `https://samjha-do.pages.dev/api/ai`, which runs Llama 3.3 70B on Cloudflare's edge, and returns the analysis.
+Done. End users upload a document, the browser calls `/api/ai`, which runs Llama 3.3 70B on Cloudflare's edge, and returns the analysis.
 
 ### 4. (Optional) Deploy from CLI with wrangler instead
+If you prefer CLI over the dashboard, create a `wrangler.toml` **locally** (don't commit it):
+```toml
+name = "samjha-do"
+compatibility_date = "2024-09-01"
+pages_build_output_dir = "."
+
+[ai]
+binding = "AI"
+```
+Then:
 ```bash
 npm install -g wrangler
 wrangler login
 wrangler pages deploy .
 ```
-The `wrangler.toml` in this folder wires up the AI binding automatically.
 
 ---
 
@@ -88,7 +100,6 @@ Or skip local AI and use the Pollinations fallback: open `http://localhost:8000/
 samjha-do/
 ├── index.html              ← the entire app UI + client JS
 ├── README.md               ← this file
-├── wrangler.toml           ← optional — for `wrangler pages deploy`
 └── functions/
     └── api/
         └── ai.js           ← Cloudflare Pages Function (runs as a Worker)
