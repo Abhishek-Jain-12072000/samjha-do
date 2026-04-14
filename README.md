@@ -3,74 +3,46 @@
 Upload a rent agreement, offer letter, insurance policy, loan paper, or court notice → get a plain explanation in **Hindi, English, or Hinglish**, with red flags, key terms, legal-validity checks, and questions to ask before signing.
 
 **For end users:** Zero setup. No API keys. No downloads. Just open the site and upload.
-**For you (the deployer):** One 2-minute Cloudflare signup + a Google AI Studio key (free).
+**For you (the deployer):** One Cloudflare account (free). No API keys needed.
 
 ---
 
 ## Architecture
 
-- **Frontend:** single `index.html` (Tailwind + PDF.js + mammoth + Tesseract OCR via CDNs)
-- **AI backend:** **Google Gemini Flash Lite** via a Cloudflare Pages Function at `/api/ai`
-- **Zero keys exposed:** the API key lives as an encrypted environment variable on Cloudflare — never in client code
+- **Frontend:** single `index.html` in `public/` (Tailwind + PDF.js + mammoth + Tesseract OCR via CDNs)
+- **AI backend:** **Cloudflare Workers AI** free tier (10,000 neurons/day), Llama 3.3 70B primary with auto-fallback
+- **Zero keys needed:** Workers AI is accessed via a binding — no API key, no secrets, no env vars
 
 ---
 
-## Deploy to Cloudflare Pages (free, ~5 min)
+## Deploy (free, ~3 min)
 
-> **Important:** Do **not** add a `wrangler.toml` to the repo — its presence makes Cloudflare run the Workers deploy command instead of Pages, which breaks the build.
+### 1. Push this folder to GitHub
 
-### 1. Get a Gemini API key
-1. Go to [aistudio.google.com](https://aistudio.google.com)
-2. Create a project → Get API Key → copy it
+### 2. Install wrangler & deploy
+```bash
+npm install -g wrangler
+wrangler login
+wrangler deploy
+```
 
-### 2. Push this folder to GitHub
-Any free GitHub repo. No workflow, no build step, no config file needed.
-
-### 3. Create the Pages project
-1. Sign in at [dash.cloudflare.com](https://dash.cloudflare.com) (free account)
-2. **Workers & Pages → Create application → Pages → Connect to Git**
-3. Pick the repo you just pushed
-4. Build settings:
-   - Framework preset: **None**
-   - Build command: *(leave empty)*
-   - Build output directory: `/` (or leave empty)
-   - Root directory: `/`
-5. Click **Save and Deploy**
-
-### 4. Add the Gemini API key as a secret
-1. Open your Pages project → **Settings → Environment variables**
-2. Click **Add variable**
-3. Variable name: `GEMINI_API_KEY`
-4. Value: paste your Google AI Studio key
-5. Check **Encrypt** ✓
-6. Save
-7. Go to **Deployments** → click the three-dot menu on the latest deployment → **Retry deployment** (env vars only take effect on new deployments)
-
-Done. End users upload a document → `/api/ai` → Gemini Flash Lite → structured analysis returned.
+That's it. Your site is live at `https://samjha-do.<your-account>.workers.dev`.
 
 ### Health check
-
 ```
-curl https://your-site.pages.dev/api/ai
+curl https://samjha-do.<your-account>.workers.dev/api/ai
 ```
-
-Should return `{ "ok": true, "key": "GEMINI_API_KEY present ✅", "model": "gemini-2.0-flash-lite" }`.
+Should return `{ "ok": true, "binding": "AI binding present ✅", ... }`.
 
 ---
 
 ## Local development
 
 ```bash
-# Static files only (AI calls will fail without the Pages Function)
-python3 -m http.server 8000
-
-# Full local emulation with Pages Functions
 npm install -g wrangler
-echo 'GEMINI_API_KEY=your-key-here' > .dev.vars
-wrangler pages dev .
+wrangler dev
 ```
-
-This runs at `http://localhost:8788` with the `/api/ai` function working locally.
+Runs at `http://localhost:8787` with Workers AI working locally.
 
 ---
 
@@ -78,14 +50,24 @@ This runs at `http://localhost:8788` with the `/api/ai` function working locally
 
 ```
 samjha-do/
-├── index.html              ← the entire app UI + client JS
-├── README.md               ← this file
-└── functions/
-    └── api/
-        └── ai.js           ← Cloudflare Pages Function (proxies to Gemini)
+├── wrangler.toml           ← Worker config + AI binding + static assets
+├── src/worker.js           ← handles /api/ai → Workers AI (Llama 3.3 70B)
+├── public/index.html       ← the entire app UI + client JS
+└── README.md
 ```
 
-Cloudflare Pages auto-detects the `functions/` directory and turns each file into an API route. `functions/api/ai.js` → `https://your-site.pages.dev/api/ai`.
+---
+
+## Free tier limits
+
+| Limit | Value |
+|---|---|
+| Workers AI free quota | 10,000 neurons/day |
+| Neurons per analysis | ~8–15 (depends on doc length) |
+| Analyses/day (free) | **~700–1,200** |
+| Fallback models | Llama 3.1 8B, Mistral Small 3.1 24B |
+
+No credit card required.
 
 ---
 
@@ -97,11 +79,9 @@ Cloudflare Pages auto-detects the `functions/` directory and turns each file int
 - Verdict banner + bottom-line recommendation (sign / negotiate / don't sign / consult lawyer)
 - Parties, obligations (yours vs theirs), money table, key dates, exit terms
 - Red flags with severity, clause reference, explanation + suggested fix
-- Missing clauses detection
-- Questions to ask before signing
-- Legality checklist (stamp paper, registration, witnesses, etc.)
+- Missing clauses detection, questions to ask, legality checklist
 - **Hindi (Devanagari) / English / Hinglish** — toggle anytime
-- 🔊 Read-aloud via browser TTS
+- Read-aloud via browser TTS
 - Works on any modern browser, desktop or mobile
 
 ---
@@ -109,14 +89,14 @@ Cloudflare Pages auto-detects the `functions/` directory and turns each file int
 ## Privacy
 
 - Documents are parsed and OCR'd entirely on the user's device
-- Only the extracted text is sent through Cloudflare to Gemini for analysis
-- No data is stored by this app
+- Only extracted text is sent to Cloudflare Workers AI for analysis
+- No data stored by this app
 
 ---
 
 ## License
 
-MIT. Fork it, ship it, improve it.
+MIT
 
 ---
 

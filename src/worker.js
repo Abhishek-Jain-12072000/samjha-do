@@ -1,9 +1,18 @@
-// Cloudflare Worker — handles /api/ai route, static assets served automatically via [assets] in wrangler.toml
-// Secret: GEMINI_API_KEY (set via `wrangler secret put GEMINI_API_KEY`)
+// Cloudflare Worker — /api/ai route using Groq (free tier, ultra-fast)
+// Secret: GROQ_API_KEY (set via `wrangler secret put GROQ_API_KEY`)
+// Free tier: 14,400 req/day, 30 req/min — more than enough for 50 calls/day
+// Get key free at: https://console.groq.com
 
 const SYSTEM = 'You are Samjha Do, a legal document explainer for Indian users. Always respond with valid JSON only. No markdown, no code fences, no commentary.';
-const MODEL = 'gemini-2.0-flash-lite';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+
+// llama-3.1-8b-instant = fastest on Groq (~1-2s), good quality for structured extraction
+// llama-3.3-70b-versatile = higher quality fallback
+const MODELS = [
+  'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile',
+];
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,9 +32,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Only handle /api/ai — everything else falls through to static assets
     if (url.pathname !== '/api/ai') {
-      // Return undefined / pass-through so the asset handler serves static files
       return env.ASSETS.fetch(request);
     }
 
@@ -37,8 +44,8 @@ export default {
     if (request.method === 'GET') {
       return json({
         ok: true,
-        key: env.GEMINI_API_KEY ? 'GEMINI_API_KEY present ✅' : 'GEMINI_API_KEY MISSING ❌ — run: wrangler secret put GEMINI_API_KEY',
-        model: MODEL,
+        key: env.GROQ_API_KEY ? 'GROQ_API_KEY present ✅' : 'GROQ_API_KEY MISSING ❌ — run: wrangler secret put GROQ_API_KEY',
+        models: MODELS,
       }, 200);
     }
 
@@ -46,9 +53,9 @@ export default {
       return json({ error: 'POST only' }, 405);
     }
 
-    const apiKey = env.GEMINI_API_KEY;
+    const apiKey = env.GROQ_API_KEY;
     if (!apiKey) {
-      return json({ error: 'GEMINI_API_KEY not set. Run: wrangler secret put GEMINI_API_KEY' }, 500);
+      return json({ error: 'GROQ_API_KEY not set. Run: wrangler secret put GROQ_API_KEY' }, 500);
     }
 
     let body;
@@ -60,38 +67,45 @@ export default {
       return json({ error: 'Prompt too short' }, 400);
     }
 
-    try {
-      const r = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM }] },
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 4096,
-            responseMimeType: 'application/json',
+    let lastErr;
+    for (const model of MODELS) {
+      try {
+        const r = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
           },
-        }),
-      });
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: SYSTEM },
+              { role: 'user', content: prompt },
+            ],
+            temperature: 0.2,
+            max_tokens: 4096,
+            response_format: { type: 'json_object' },
+          }),
+        });
 
-      if (!r.ok) {
-        const errText = await r.text();
-        console.error('Gemini error:', r.status, errText);
-        return json({ error: `Gemini API error ${r.status}` }, 502);
+        if (!r.ok) {
+          const errText = await r.text();
+          console.error(`Groq ${model} error:`, r.status, errText);
+          lastErr = new Error(`Groq ${model}: HTTP ${r.status}`);
+          continue;
+        }
+
+        const data = await r.json();
+        const text = data?.choices?.[0]?.message?.content || '';
+
+        if (text && text.trim().length > 10) {
+          return json({ text, model }, 200);
+        }
+        lastErr = new Error('Empty response from ' + model);
+      } catch (e) {
+        lastErr = e;
       }
-
-      const data = await r.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-      if (!text || text.trim().length < 10) {
-        return json({ error: 'Empty response from Gemini' }, 502);
-      }
-
-      return json({ text, model: MODEL }, 200);
-    } catch (e) {
-      console.error('Gemini fetch failed:', e);
-      return json({ error: 'Failed to reach Gemini API: ' + (e.message || '') }, 502);
     }
+    return json({ error: 'All models failed. ' + (lastErr?.message || '') }, 502);
   },
 };
