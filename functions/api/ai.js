@@ -1,23 +1,17 @@
-// Cloudflare Pages Function — proxies requests to Workers AI (free tier).
-// Deployed automatically with the site on Cloudflare Pages.
-// End users never see a key. The only one-time setup is adding an "AI" binding
-// to the Pages project (dashboard → Settings → Functions → Bindings → Workers AI).
-//
-// Free tier: 10,000 "neurons" per day per account. A typical document analysis
-// with Llama 3.3 70B consumes ~10 neurons, so you get ~1000 analyses/day free.
+// Cloudflare Pages Function — proxies requests to Google Gemini (Flash Lite).
+// The API key is stored as a secret in Cloudflare Pages:
+//   Dashboard → Pages → your project → Settings → Environment variables
+//   Variable name: GEMINI_API_KEY    (encrypt ✓)
+// NEVER put the key in client-side code.
 
 const SYSTEM = 'You are Samjha Do, a legal document explainer for Indian users. Always respond with valid JSON only. No markdown, no code fences, no commentary.';
 
-const MODELS = [
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  '@cf/meta/llama-3.1-8b-instruct-fast',
-  '@cf/mistralai/mistral-small-3.1-24b-instruct',
-  '@cf/qwen/qwen1.5-14b-chat-awq',
-];
+const MODEL = 'gemini-2.0-flash-lite';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 };
@@ -28,11 +22,23 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Health check: curl https://your-site.pages.dev/api/ai
+  if (request.method === 'GET') {
+    return json({
+      ok: true,
+      key: env.GEMINI_API_KEY ? 'GEMINI_API_KEY present ✅' : 'GEMINI_API_KEY MISSING ❌ — add it in Pages → Settings → Environment variables',
+      model: MODEL,
+    }, 200);
+  }
+
   if (request.method !== 'POST') {
     return json({ error: 'POST only' }, 405);
   }
-  if (!env.AI) {
-    return json({ error: 'Workers AI binding missing. In Cloudflare Pages → Settings → Functions → Bindings, add a Workers AI binding named "AI".' }, 500);
+
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return json({ error: 'GEMINI_API_KEY not set. In Cloudflare Pages → Settings → Environment variables, add GEMINI_API_KEY (encrypt ✓), then redeploy.' }, 500);
   }
 
   let body;
@@ -44,29 +50,39 @@ export async function onRequest(context) {
     return json({ error: 'Prompt too short' }, 400);
   }
 
-  // Try models in order — falls back if one is overloaded or errors
-  let lastErr;
-  for (const model of MODELS) {
-    try {
-      const result = await env.AI.run(model, {
-        messages: [
-          { role: 'system', content: SYSTEM },
-          { role: 'user',   content: prompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 2048,
-        response_format: { type: 'json_object' },
-      });
-      const text = result.response || result.result?.response || '';
-      if (text && text.trim().length > 10) {
-        return json({ text, model }, 200);
-      }
-      lastErr = new Error('empty response from ' + model);
-    } catch (e) {
-      lastErr = e;
+  try {
+    const r = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error('Gemini error:', r.status, errText);
+      return json({ error: `Gemini API error ${r.status}` }, 502);
     }
+
+    const data = await r.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text || text.trim().length < 10) {
+      return json({ error: 'Empty response from Gemini' }, 502);
+    }
+
+    return json({ text, model: MODEL }, 200);
+  } catch (e) {
+    console.error('Gemini fetch failed:', e);
+    return json({ error: 'Failed to reach Gemini API: ' + (e.message || '') }, 502);
   }
-  return json({ error: 'All Workers AI models failed. ' + (lastErr?.message || '') }, 502);
 }
 
 function json(obj, status) {

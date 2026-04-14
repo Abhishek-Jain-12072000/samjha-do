@@ -42,12 +42,7 @@
     </div>
   </div>
   <div class="flex items-center gap-3">
-    <span id="modelStatus" class="text-xs text-slate-500 hidden md:inline-flex items-center gap-2"><span class="pulse-dot"></span><span id="modelLabel">Initializing…</span></span>
-    <select id="modelPicker" class="text-xs border border-slate-300 rounded-lg px-2 py-2 hidden md:block">
-      <option value="auto">Auto · Cloudflare AI, then Pollinations</option>
-      <option value="cf">Cloudflare Workers AI (Llama 3.3 70B)</option>
-      <option value="pollinations">Pollinations (free public AI)</option>
-    </select>
+    <span id="modelStatus" class="text-xs text-slate-500 hidden md:inline-flex items-center gap-2"><span class="pulse-dot"></span><span id="modelLabel">Ready</span></span>
   </div>
 </header>
 
@@ -72,7 +67,7 @@ python3 -m http.server 8000
       Upload any legal document — rent agreement, job offer, insurance, loan, court notice. Get a plain explanation in Hindi, English, or Hinglish. We flag the traps. We tell you what to ask before signing.
     </p>
     <p class="mt-2 devanagari text-slate-700">जो समझ नहीं आता, उसपर साइन मत करो। हम आसान भाषा में समझाएँगे।</p>
-    <p class="mt-4 text-xs text-slate-500">⚡ Zero setup for users · No API keys · Powered by Cloudflare Workers AI free tier · Open source</p>
+    <p class="mt-4 text-xs text-slate-500">⚡ Zero setup for users · No API keys · Powered by Gemini Flash Lite · Open source</p>
   </section>
 
 
@@ -82,12 +77,23 @@ python3 -m http.server 8000
       <div class="text-5xl mb-3">📄</div>
       <h3 class="text-xl font-semibold">Upload your document</h3>
       <p class="text-slate-500 text-sm mt-1">PDF, Word (.docx), Image (JPG/PNG), or Text — up to 20 MB</p>
+
+      <div class="mt-5 inline-flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
+        <label for="uploadLang" class="text-sm font-medium text-slate-700">Explain in:</label>
+        <select id="uploadLang" class="text-sm border border-orange-200 rounded-lg px-2 py-1 bg-white">
+          <option value="hi" selected>हिंदी (Hindi)</option>
+          <option value="en">English</option>
+          <option value="hg">Hinglish (Roman)</option>
+        </select>
+        <span class="text-xs text-slate-400 hidden md:inline">· you can switch later</span>
+      </div>
+
       <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp" class="hidden" />
       <div class="mt-5 flex flex-col sm:flex-row gap-3 justify-center">
         <button id="pickFileBtn" class="btn-primary px-6 py-3 rounded-xl font-semibold">Choose file</button>
         <button id="pasteBtn" class="px-6 py-3 rounded-xl border border-slate-300 hover:bg-slate-50 font-semibold">Paste text instead</button>
       </div>
-      <p class="text-xs text-slate-400 mt-4">Your document is analysed entirely on your device. It never touches any server.</p>
+      <p class="text-xs text-slate-400 mt-4">Document parsing happens on your device. Only the extracted text is sent to our server for analysis.</p>
     </div>
 
     <div id="pasteArea" class="hidden mt-4">
@@ -121,7 +127,6 @@ python3 -m http.server 8000
         <div>
           <p class="text-xs uppercase tracking-wider text-slate-500">Document type</p>
           <h3 id="docType" class="text-2xl font-bold">—</h3>
-          <p id="docSummary" class="text-slate-600 mt-1 text-sm">—</p>
         </div>
         <div class="flex gap-2">
           <button id="speakBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm flex items-center gap-2">🔊 <span>Speak</span></button>
@@ -131,6 +136,9 @@ python3 -m http.server 8000
       </div>
     </div>
 
+    <!-- Verdict banner -->
+    <div id="verdictBanner" class="card p-6 border-l-8"></div>
+
     <div class="card p-2 inline-flex gap-1" id="langTabs">
       <button data-lang="hi" class="lang-tab px-4 py-2 rounded-lg text-sm font-medium tab-active">हिंदी</button>
       <button data-lang="en" class="lang-tab px-4 py-2 rounded-lg text-sm font-medium">English</button>
@@ -138,18 +146,50 @@ python3 -m http.server 8000
     </div>
 
     <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">📖 Plain explanation</h3>
-      <div id="explanation" class="prose max-w-none text-slate-700 leading-relaxed"></div>
+      <h3 class="font-bold text-lg mb-3">📖 Plain summary</h3>
+      <div id="summary" class="prose max-w-none text-slate-700 leading-relaxed"></div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">👥 Parties</h3>
+        <div id="parties" class="space-y-2"></div>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">📅 Key dates</h3>
+        <div id="dates" class="space-y-2"></div>
+      </div>
     </div>
 
     <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">🔑 Key terms (numbers, dates, names)</h3>
-      <div id="keyTerms" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      <h3 class="font-bold text-lg mb-3">💰 Money &amp; amounts</h3>
+      <div id="money" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">✅ What you must do</h3>
+        <div id="yourObligations" class="space-y-2"></div>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">🤝 What they must do</h3>
+        <div id="theirObligations" class="space-y-2"></div>
+      </div>
     </div>
 
     <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">🚩 Red flags & traps</h3>
+      <h3 class="font-bold text-lg mb-3">🚪 Exit / termination terms</h3>
+      <div id="exitTerms" class="text-slate-700"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">🚩 Red flags &amp; traps</h3>
       <div id="redFlags" class="space-y-3"></div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-3">🕳️ Missing clauses (should be there, but aren't)</h3>
+      <div id="missingClauses" class="space-y-2"></div>
     </div>
 
     <div class="card p-6">
@@ -160,8 +200,12 @@ python3 -m http.server 8000
     <div class="card p-6">
       <h3 class="font-bold text-lg mb-3">⚖️ Is this document legally proper?</h3>
       <div id="legality" class="space-y-3"></div>
-      <p class="text-xs text-slate-400 mt-4 italic">This is an AI explanation, not legal advice. For high-stakes decisions, consult a lawyer.</p>
     </div>
+
+    <!-- Bottom line -->
+    <div id="bottomLine" class="card p-6 border-l-8"></div>
+
+    <p class="text-xs text-slate-400 italic text-center">This is an AI explanation, not legal advice. For high-stakes decisions, consult a qualified lawyer.</p>
   </section>
 
   <!-- ERROR -->
@@ -169,15 +213,13 @@ python3 -m http.server 8000
     <h3 class="font-semibold text-red-700">Something went wrong</h3>
     <p id="errorText" class="text-sm text-slate-600 mt-1 whitespace-pre-line"></p>
     <div id="errorActions" class="mt-3 flex flex-wrap gap-2">
-      <button id="errorRetry"     class="px-4 py-2 rounded-lg btn-primary text-sm font-semibold">Try again</button>
-      <button id="errorClearCache" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hidden">🧹 Clear model cache & retry</button>
-      <button id="errorSwitchModel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold hidden">↻ Try a different model</button>
+      <button id="errorRetry" class="px-4 py-2 rounded-lg btn-primary text-sm font-semibold">Try again</button>
     </div>
   </section>
 </main>
 
 <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-xs text-slate-500">
-  Samjha Do · Open source · 100% private · Powered by WebLLM + WebGPU · Made for India 🇮🇳 · Not legal advice
+  Samjha Do · Open source · Powered by Gemini Flash Lite · Made for India 🇮🇳 · Not legal advice
 </footer>
 
 <script>
@@ -196,22 +238,9 @@ const state = {
   rawText: '',
   analysis: null,
   lang: 'hi',
-  backend: localStorage.getItem('samjha_backend') || 'auto'
 };
 
-// Cloudflare Pages Function endpoint (same origin). If you deploy the worker
-// separately, override by appending  ?api=https://your-worker.workers.dev/api/ai
-// to the URL, or set window.SAMJHA_API in a custom build.
-const CF_API = new URLSearchParams(location.search).get('api')
-            || window.SAMJHA_API
-            || '/api/ai';
-
-$('modelPicker').value = state.backend;
-$('modelPicker').addEventListener('change', e => {
-  state.backend = e.target.value;
-  localStorage.setItem('samjha_backend', state.backend);
-  setStatus('Backend: ' + state.backend);
-});
+const API_URL = new URLSearchParams(location.search).get('api') || '/api/ai';
 
 function setStatus(t){ $('modelLabel').textContent = t; }
 
@@ -220,6 +249,8 @@ const dropZone = $('dropZone');
 ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); }));
 ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); }));
 dropZone.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) handleFile(f); });
+$('uploadLang').addEventListener('change', e => { state.lang = e.target.value; });
+state.lang = $('uploadLang').value || 'hi';
 $('pickFileBtn').onclick = () => $('fileInput').click();
 $('fileInput').onchange = e => { const f = e.target.files[0]; if (f) handleFile(f); };
 $('pasteBtn').onclick = () => { $('pasteArea').classList.remove('hidden'); };
@@ -227,34 +258,6 @@ $('cancelPaste').onclick = () => { $('pasteArea').classList.add('hidden'); $('pa
 $('submitPaste').onclick = () => { const t = $('pasteText').value.trim(); if (t.length<20) return alert('Please paste at least a few sentences.'); processText(t); };
 $('resetBtn').onclick = () => location.reload();
 $('errorRetry').onclick = () => { $('errorSection').classList.add('hidden'); $('uploadSection').classList.remove('hidden'); };
-$('errorClearCache').onclick = async () => {
-  try {
-    setStatus('Clearing cache…');
-    // Drop webllm engine
-    try { if (state.engine && state.engine.unload) await state.engine.unload(); } catch(_){}
-    state.engine = null; state.engineModel = null;
-    // Clear caches & IndexedDB for this origin
-    if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
-    if (indexedDB.databases) {
-      const dbs = await indexedDB.databases();
-      await Promise.all((dbs||[]).map(d => new Promise(res => { const r = indexedDB.deleteDatabase(d.name); r.onsuccess=r.onerror=r.onblocked=()=>res(); })));
-    } else {
-      ['webllm/model','webllm/wasm','webllm/config'].forEach(n => { try { indexedDB.deleteDatabase(n); } catch(_){} });
-    }
-    alert('Cache cleared. The page will reload.');
-    location.reload();
-  } catch(e){ alert('Could not clear cache: '+e.message); }
-};
-$('errorSwitchModel').onclick = () => {
-  // Rotate to the Llama 3.2 1B (smallest, most reliable) and retry
-  const picker = $('modelPicker');
-  picker.value = 'Llama-3.2-1B-Instruct-q4f32_1-MLC';
-  state.selectedModel = picker.value;
-  localStorage.setItem('samjha_model', state.selectedModel);
-  state.engine = null; state.engineModel = null;
-  $('errorSection').classList.add('hidden');
-  if (state.rawText) processText(state.rawText); else $('uploadSection').classList.remove('hidden');
-};
 
 async function handleFile(file){
   if (file.size > 20*1024*1024) return showError('File is too large (>20 MB).');
@@ -351,10 +354,10 @@ async function extractImage(file){
   } finally { await worker.terminate(); }
 }
 
-/* ---------- Cloudflare Workers AI (via same-origin Pages Function) ---------- */
-async function runWithCloudflare(prompt){
-  setStatus('Cloudflare Workers AI…');
-  const r = await fetch(CF_API, {
+/* ---------- Gemini via Cloudflare Pages Function ---------- */
+async function runAI(prompt){
+  setStatus('Analyzing with Gemini…');
+  const r = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt })
@@ -365,69 +368,9 @@ async function runWithCloudflare(prompt){
     throw new Error(msg);
   }
   const j = await r.json();
-  if (!j.text) throw new Error('Empty response from Cloudflare AI');
-  setStatus('Ready · CF ' + (j.model || 'Workers AI'));
+  if (!j.text) throw new Error('Empty response from AI. Try again.');
+  setStatus('Ready · Gemini Flash Lite');
   return j.text;
-}
-
-/* ---------- Pollinations (free public AI, no key) ---------- */
-const POLL_MODELS = ['openai','openai-fast','mistral','llama','deepseek','openai-large'];
-
-async function runWithPollinations(prompt){
-  let lastErr;
-  for (const model of POLL_MODELS){
-    setStatus('Pollinations · ' + model);
-    for (const url of ['https://text.pollinations.ai/openai','https://text.pollinations.ai/']){
-      try {
-        const r = await fetch(url, {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({
-            model,
-            messages:[
-              { role:'system', content:'You are Samjha Do. Respond with valid JSON only.' },
-              { role:'user', content: prompt }
-            ],
-            temperature: 0.2,
-            jsonMode: true,
-            private: true,
-            referrer: 'samjha-do'
-          })
-        });
-        if (!r.ok) { lastErr = new Error('HTTP '+r.status); continue; }
-        const ct = r.headers.get('content-type') || '';
-        let txt;
-        if (ct.includes('application/json')){
-          const j = await r.json();
-          txt = j.choices?.[0]?.message?.content || j.content || j.response || '';
-        } else {
-          txt = await r.text();
-        }
-        if (txt && txt.trim().length > 10) { setStatus('Ready · Pollinations ' + model); return txt; }
-      } catch(e){ lastErr = e; }
-    }
-  }
-  // Last-resort GET
-  try {
-    setStatus('Pollinations · GET fallback');
-    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt) + '?model=openai&json=true&private=true&referrer=samjha-do';
-    const r = await fetch(url);
-    if (r.ok) return await r.text();
-  } catch(e){ lastErr = e; }
-  throw lastErr || new Error('Pollinations did not respond');
-}
-
-async function runAI(prompt){
-  const mode = state.backend || 'auto';
-  if (mode === 'cf') return await runWithCloudflare(prompt);
-  if (mode === 'pollinations') return await runWithPollinations(prompt);
-  // auto: Cloudflare first (fast, high quality), fall back to Pollinations
-  try { return await runWithCloudflare(prompt); }
-  catch(e){
-    console.warn('Cloudflare AI failed, falling back to Pollinations:', e);
-    setStatus('CF unavailable, using Pollinations…');
-    return await runWithPollinations(prompt);
-  }
 }
 
 /* ---------- Core ---------- */
@@ -440,21 +383,18 @@ function showProgress(t, sub){
   $('progressSub').textContent = sub || '';
 }
 function setProgressSub(s){ $('progressSub').textContent = s; }
-function showError(m, opts){
-  opts = opts || {};
+function showError(m){
   $('progressSection').classList.add('hidden');
   $('uploadSection').classList.add('hidden');
   $('errorSection').classList.remove('hidden');
   $('errorText').textContent = m;
-  $('errorClearCache').classList.toggle('hidden', !opts.offerClearCache);
-  $('errorSwitchModel').classList.toggle('hidden', !opts.offerSwitchModel);
 }
 
 
 async function processText(text){
   state.rawText = text.slice(0, 10000);
   try {
-    showProgress('Analyzing with AI…', state.backend === 'pollinations' ? 'Using Pollinations (free public AI)' : 'Using Cloudflare Workers AI (free tier)');
+    showProgress('Analyzing with AI…', 'Powered by Gemini Flash Lite');
     const prompt = buildPrompt(state.rawText);
     const txt = await runAI(prompt);
     const json = parseJson(txt);
@@ -468,28 +408,104 @@ async function processText(text){
 }
 
 function buildPrompt(text){
-  return `Analyse the document and respond ONLY with valid JSON matching this schema (no markdown, no code fences, no prose):
+  return `You are Samjha Do. Analyse the legal/financial document below and respond ONLY with valid JSON matching this exact schema. No markdown, no code fences, no prose, no commentary.
 
 {
-  "doc_type": "Rent Agreement | Job Offer Letter | Loan Agreement | Insurance Policy | Court Summons | NDA | Other",
-  "one_line": { "hi": "<Devanagari Hindi>", "en": "<English>", "hg": "<Hinglish Roman>" },
-  "explanation": {
-    "hi": "<plain Devanagari Hindi, 4-6 short paragraphs, no jargon>",
-    "en": "<same in simple English>",
-    "hg": "<Hinglish, Roman-script Hindi mixed with English>"
+  "doc_type": "Rent Agreement | Job Offer Letter | Employment Contract | Loan Agreement | Insurance Policy | Health Insurance | Court Summons | Legal Notice | NDA | Service Agreement | Sale Deed | Other",
+
+  "verdict": {
+    "level": "safe | caution | risky | dangerous",
+    "hi": "<1 sentence Devanagari Hindi>",
+    "en": "<1 sentence English>",
+    "hg": "<1 sentence Hinglish Roman>"
   },
-  "key_terms": [ { "label_en":"Monthly rent", "label_hi":"मासिक किराया", "value":"₹25,000" } ],
-  "red_flags": [ { "severity":"high|medium|low", "title_en":"", "title_hi":"", "detail_en":"", "detail_hi":"", "detail_hg":"" } ],
-  "questions":  [ { "q_en":"", "q_hi":"", "q_hg":"", "why_en":"" } ],
-  "legality":   [ { "status":"ok|warning|missing", "label_en":"", "label_hi":"", "note_en":"", "note_hi":"", "note_hg":"" } ]
+
+  "summary": {
+    "hi": "<plain Devanagari Hindi, 3-5 short paragraphs, no legal jargon>",
+    "en": "<same content in simple English>",
+    "hg": "<same content in Hinglish (Roman-script Hindi mixed with English, casual urban tone)>"
+  },
+
+  "parties": [
+    { "role_en": "Landlord", "role_hi": "मकान मालिक", "name": "<from document or 'not specified'>" }
+  ],
+
+  "your_obligations": [
+    { "hi": "", "en": "", "hg": "" }
+  ],
+
+  "their_obligations": [
+    { "hi": "", "en": "", "hg": "" }
+  ],
+
+  "money": [
+    { "label_en": "Monthly rent", "label_hi": "मासिक किराया", "amount": "₹25,000", "note_en": "due on 5th of each month", "note_hi": "हर महीने की 5 तारीख को" }
+  ],
+
+  "dates": [
+    { "label_en": "Agreement start", "label_hi": "शुरू होने की तारीख", "value": "1 May 2026" },
+    { "label_en": "Notice period", "label_hi": "नोटिस अवधि", "value": "2 months" }
+  ],
+
+  "exit_terms": {
+    "hi": "<how to exit, notice needed, penalties for early exit — Devanagari>",
+    "en": "<same in English>",
+    "hg": "<same in Hinglish>"
+  },
+
+  "red_flags": [
+    {
+      "severity": "high | medium | low",
+      "clause_ref": "<clause number or brief quote from document>",
+      "title_hi": "", "title_en": "", "title_hg": "",
+      "why_hi": "<why this is a problem for you>",
+      "why_en": "",
+      "why_hg": "",
+      "fix_hi": "<what to negotiate / demand>",
+      "fix_en": "",
+      "fix_hg": ""
+    }
+  ],
+
+  "missing_clauses": [
+    {
+      "hi": "<a protective clause that SHOULD be in this document but isn't>",
+      "en": "",
+      "hg": ""
+    }
+  ],
+
+  "questions_to_ask": [
+    { "q_hi": "", "q_en": "", "q_hg": "", "why_en": "<one-line reason this matters>" }
+  ],
+
+  "legality": [
+    {
+      "status": "ok | warning | missing",
+      "label_hi": "", "label_en": "",
+      "note_hi": "", "note_en": "", "note_hg": ""
+    }
+  ],
+
+  "bottom_line": {
+    "action": "sign | sign_with_changes | do_not_sign | consult_lawyer",
+    "hi": "<final 2-3 sentence recommendation in Devanagari>",
+    "en": "",
+    "hg": ""
+  }
 }
 
-Rules:
-- JSON only.
-- Hindi MUST be in Devanagari script.
-- Hinglish = Roman-script Hindi mixed with English (casual, like urban Indians text).
-- Cite actual numbers / clauses from the document; do not invent facts.
-- Include 4-8 key_terms, 0-6 red_flags, 4-6 questions, 3-5 legality items.
+STRICT RULES:
+- JSON only. No text outside the JSON object.
+- Hindi MUST be in Devanagari script (हिंदी), never Roman.
+- Hinglish = Roman-script Hindi mixed with English, casual tone (e.g. "Ye clause thoda risky hai, 2 months notice deni padegi.")
+- English = simple, short sentences, no legalese.
+- Every statement must cite an actual clause, number, date, or term from the document. DO NOT invent facts.
+- If a section does not apply, return an empty array [] — never omit a key.
+- Counts: 1-5 parties, 3-7 your_obligations, 3-7 their_obligations, 3-10 money items, 3-8 dates, 1-8 red_flags, 0-6 missing_clauses, 4-8 questions_to_ask, 3-6 legality items.
+- For Indian documents, check: adequate stamp-paper value, proper registration, witness signatures, clear parties, governing law, dispute resolution, compliance with Indian Contract Act / Rent Control / IT Rules / relevant statute.
+- Severity "high" = could cause significant financial loss or legal jeopardy. "medium" = unfair but survivable. "low" = annoying or sloppy drafting.
+- bottom_line.action: "sign" only if genuinely safe; "sign_with_changes" if red flags can be negotiated; "do_not_sign" if dangerous; "consult_lawyer" if complex/high-stakes.
 
 DOCUMENT:
 """
@@ -506,49 +522,150 @@ function parseJson(s){
 }
 
 /* ---------- Render ---------- */
+const VERDICT_STYLE = {
+  safe:      { bg:'#f0fdf4', border:'#16a34a', icon:'✅', label_en:'Looks safe',          label_hi:'सुरक्षित लगता है',    label_hg:'Safe lagta hai' },
+  caution:   { bg:'#fffbeb', border:'#d97706', icon:'⚠️', label_en:'Read carefully',      label_hi:'ध्यान से पढ़ें',      label_hg:'Dhyan se padho' },
+  risky:     { bg:'#fef2f2', border:'#dc2626', icon:'🚨', label_en:'Risky — negotiate',   label_hi:'जोखिम — बात करें',   label_hg:'Risky — baat karo' },
+  dangerous: { bg:'#fef2f2', border:'#991b1b', icon:'🛑', label_en:'Dangerous — do not sign', label_hi:'खतरनाक — साइन न करें', label_hg:'Khatarnaak — sign mat karo' },
+};
+const ACTION_STYLE = {
+  sign:              { bg:'#f0fdf4', border:'#16a34a', icon:'✅', label_en:'You can sign',                label_hi:'आप साइन कर सकते हैं',          label_hg:'Aap sign kar sakte ho' },
+  sign_with_changes: { bg:'#fffbeb', border:'#d97706', icon:'✏️', label_en:'Sign — after these changes',  label_hi:'बदलाव के बाद साइन करें',       label_hg:'Changes ke baad sign karo' },
+  do_not_sign:       { bg:'#fef2f2', border:'#dc2626', icon:'🛑', label_en:'Do not sign',                 label_hi:'साइन न करें',                 label_hg:'Sign mat karo' },
+  consult_lawyer:    { bg:'#eff6ff', border:'#2563eb', icon:'⚖️', label_en:'Consult a lawyer first',      label_hi:'पहले वकील से मिलें',          label_hg:'Pehle lawyer se milo' },
+};
+
 function renderResults(){
   $('progressSection').classList.add('hidden');
   $('resultsSection').classList.remove('hidden');
   const a = state.analysis;
   $('docType').textContent = a.doc_type || 'Document';
-  renderForLang(state.lang);
-  const kt = $('keyTerms'); kt.innerHTML='';
-  (a.key_terms||[]).forEach(t => {
-    const div = document.createElement('div');
-    div.className = 'p-3 rounded-xl border border-slate-200';
-    div.innerHTML = `<div class="text-xs text-slate-500">${escapeHtml(t.label_en||'')} <span class="devanagari">${escapeHtml(t.label_hi||'')}</span></div><div class="font-semibold mt-1">${escapeHtml(t.value||'')}</div>`;
-    kt.appendChild(div);
-  });
+  // default tabs to the language the user picked on upload
+  renderForLang(state.lang || 'hi');
+}
+
+function pickLang(obj, lang){
+  if (!obj) return '';
+  return obj[lang] || obj.en || obj.hi || obj.hg || '';
 }
 
 function renderForLang(lang){
   state.lang = lang;
   document.querySelectorAll('.lang-tab').forEach(b => b.classList.toggle('tab-active', b.dataset.lang===lang));
-  const a = state.analysis;
+  const a = state.analysis || {};
   const isHi = lang==='hi';
   const cls = isHi ? 'devanagari' : '';
 
-  $('docSummary').className = 'mt-1 text-sm text-slate-600 ' + cls;
-  $('docSummary').textContent = (a.one_line && a.one_line[lang]) || '';
+  // --- Verdict banner ---
+  const v = a.verdict || {};
+  const vs = VERDICT_STYLE[v.level] || VERDICT_STYLE.caution;
+  const vText = pickLang(v, lang);
+  const vLabel = isHi ? vs.label_hi : (lang==='hg' ? vs.label_hg : vs.label_en);
+  $('verdictBanner').style.background = vs.bg;
+  $('verdictBanner').style.borderColor = vs.border;
+  $('verdictBanner').innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="text-3xl">${vs.icon}</div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500">Verdict</div>
+        <div class="text-lg font-bold ${cls}">${escapeHtml(vLabel)}</div>
+        <div class="mt-1 text-slate-700 ${cls}">${escapeHtml(vText)}</div>
+      </div>
+    </div>`;
 
-  const exp = (a.explanation && a.explanation[lang]) || '';
-  $('explanation').className = 'prose max-w-none text-slate-700 leading-relaxed ' + cls;
-  $('explanation').innerHTML = exp.split(/\n+/).map(p => `<p class="mb-3">${escapeHtml(p)}</p>`).join('');
+  // --- Summary ---
+  const sum = pickLang(a.summary, lang);
+  $('summary').className = 'prose max-w-none text-slate-700 leading-relaxed ' + cls;
+  $('summary').innerHTML = sum.split(/\n+/).map(p => `<p class="mb-3">${escapeHtml(p)}</p>`).join('');
 
+  // --- Parties ---
+  const pEl = $('parties'); pEl.innerHTML='';
+  (a.parties||[]).forEach(pr => {
+    const role = isHi ? (pr.role_hi||pr.role_en) : pr.role_en;
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl border border-slate-200 flex justify-between items-center gap-3';
+    div.innerHTML = `<div class="text-sm ${cls}"><span class="text-slate-500">${escapeHtml(role||'')}:</span> <span class="font-semibold">${escapeHtml(pr.name||'—')}</span></div>`;
+    pEl.appendChild(div);
+  });
+  if (!(a.parties||[]).length) pEl.innerHTML = `<div class="text-sm text-slate-400">Not specified.</div>`;
+
+  // --- Dates ---
+  const dEl = $('dates'); dEl.innerHTML='';
+  (a.dates||[]).forEach(d => {
+    const lbl = isHi ? (d.label_hi||d.label_en) : d.label_en;
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl border border-slate-200 flex justify-between gap-3';
+    div.innerHTML = `<div class="text-sm text-slate-600 ${cls}">${escapeHtml(lbl||'')}</div><div class="text-sm font-semibold">${escapeHtml(d.value||'—')}</div>`;
+    dEl.appendChild(div);
+  });
+  if (!(a.dates||[]).length) dEl.innerHTML = `<div class="text-sm text-slate-400">No key dates found.</div>`;
+
+  // --- Money ---
+  const mEl = $('money'); mEl.innerHTML='';
+  (a.money||[]).forEach(m => {
+    const lbl = isHi ? (m.label_hi||m.label_en) : m.label_en;
+    const note = isHi ? (m.note_hi||m.note_en) : m.note_en;
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl bg-orange-50 border border-orange-100';
+    div.innerHTML = `<div class="text-xs text-slate-500 ${cls}">${escapeHtml(lbl||'')}</div>
+      <div class="text-xl font-bold text-orange-700 mt-1">${escapeHtml(m.amount||'—')}</div>
+      ${note?`<div class="text-xs text-slate-600 mt-1 ${cls}">${escapeHtml(note)}</div>`:''}`;
+    mEl.appendChild(div);
+  });
+  if (!(a.money||[]).length) mEl.innerHTML = `<div class="text-sm text-slate-400">No money amounts found.</div>`;
+
+  // --- Obligations ---
+  const fillOblig = (id, list) => {
+    const el = $(id); el.innerHTML='';
+    (list||[]).forEach(o => {
+      const t = pickLang(o, lang);
+      const div = document.createElement('div');
+      div.className = 'flex gap-2 text-sm text-slate-700 ' + cls;
+      div.innerHTML = `<span class="text-orange-600">•</span><span>${escapeHtml(t)}</span>`;
+      el.appendChild(div);
+    });
+    if (!(list||[]).length) el.innerHTML = `<div class="text-sm text-slate-400">—</div>`;
+  };
+  fillOblig('yourObligations', a.your_obligations);
+  fillOblig('theirObligations', a.their_obligations);
+
+  // --- Exit terms ---
+  const ex = pickLang(a.exit_terms, lang);
+  $('exitTerms').className = cls;
+  $('exitTerms').textContent = ex || '—';
+
+  // --- Red flags ---
   const rf = $('redFlags'); rf.innerHTML='';
   (a.red_flags||[]).forEach(f => {
     const sev = f.severity==='high'?'🔴':f.severity==='medium'?'🟠':'🟡';
-    const title = isHi ? (f.title_hi||f.title_en) : f.title_en;
-    const detail = f['detail_'+lang] || f.detail_en || '';
+    const title = isHi ? (f.title_hi||f.title_en) : (lang==='hg' ? (f.title_hg||f.title_en) : f.title_en);
+    const why   = f['why_'+lang]   || f.why_en   || '';
+    const fix   = f['fix_'+lang]   || f.fix_en   || '';
     const div = document.createElement('div');
     div.className = 'red-flag p-4 rounded-r-xl';
-    div.innerHTML = `<div class="font-semibold">${sev} ${escapeHtml(title||'')}</div><div class="text-sm mt-1 ${cls}">${escapeHtml(detail)}</div>`;
+    div.innerHTML = `
+      <div class="font-semibold">${sev} ${escapeHtml(title||'')}</div>
+      ${f.clause_ref?`<div class="text-xs text-slate-500 mt-1">Clause: ${escapeHtml(f.clause_ref)}</div>`:''}
+      <div class="text-sm mt-2 ${cls}"><span class="font-medium text-red-700">Why: </span>${escapeHtml(why)}</div>
+      ${fix?`<div class="text-sm mt-1 ${cls}"><span class="font-medium text-green-700">Fix: </span>${escapeHtml(fix)}</div>`:''}`;
     rf.appendChild(div);
   });
   if (!(a.red_flags||[]).length) rf.innerHTML = `<div class="green-ok p-4 rounded-r-xl text-sm">✅ ${isHi?'कोई बड़ा रेड फ्लैग नहीं मिला।': lang==='en' ? 'No major red flags detected.' : 'Koi bada red flag nahi mila.'}</div>`;
 
+  // --- Missing clauses ---
+  const mc = $('missingClauses'); mc.innerHTML='';
+  (a.missing_clauses||[]).forEach(c => {
+    const t = pickLang(c, lang);
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl bg-amber-50 border-l-4 border-amber-400 text-sm ' + cls;
+    div.innerHTML = `⚠️ ${escapeHtml(t)}`;
+    mc.appendChild(div);
+  });
+  if (!(a.missing_clauses||[]).length) mc.innerHTML = `<div class="text-sm text-slate-400">No obvious missing clauses.</div>`;
+
+  // --- Questions ---
   const qs = $('questions'); qs.innerHTML='';
-  (a.questions||[]).forEach(q => {
+  (a.questions_to_ask||[]).forEach(q => {
     const text = q['q_'+lang] || q.q_en;
     const div = document.createElement('div');
     div.className = 'ask-q p-4 rounded-r-xl';
@@ -556,6 +673,7 @@ function renderForLang(lang){
     qs.appendChild(div);
   });
 
+  // --- Legality ---
   const lg = $('legality'); lg.innerHTML='';
   (a.legality||[]).forEach(l => {
     const ic = l.status==='ok'?'✅':l.status==='warning'?'⚠️':'❌';
@@ -567,6 +685,23 @@ function renderForLang(lang){
     div.innerHTML = `<div class="font-semibold">${ic} ${escapeHtml(lbl||'')}</div><div class="text-sm mt-1 ${cls}">${escapeHtml(note)}</div>`;
     lg.appendChild(div);
   });
+
+  // --- Bottom line ---
+  const bl = a.bottom_line || {};
+  const bs = ACTION_STYLE[bl.action] || ACTION_STYLE.consult_lawyer;
+  const blText = pickLang(bl, lang);
+  const blLabel = isHi ? bs.label_hi : (lang==='hg' ? bs.label_hg : bs.label_en);
+  $('bottomLine').style.background = bs.bg;
+  $('bottomLine').style.borderColor = bs.border;
+  $('bottomLine').innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="text-3xl">${bs.icon}</div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-slate-500">Bottom line</div>
+        <div class="text-lg font-bold ${cls}">${escapeHtml(blLabel)}</div>
+        <div class="mt-1 text-slate-700 ${cls}">${escapeHtml(blText)}</div>
+      </div>
+    </div>`;
 }
 
 document.querySelectorAll('.lang-tab').forEach(b => b.onclick = () => renderForLang(b.dataset.lang));
@@ -576,9 +711,14 @@ $('speakBtn').onclick = () => {
   if (!('speechSynthesis' in window)) return alert('Your browser does not support text-to-speech.');
   speechSynthesis.cancel();
   const a = state.analysis; if (!a) return;
-  const text = (a.explanation && a.explanation[state.lang]) || '';
+  const parts = [
+    pickLang(a.verdict, state.lang),
+    pickLang(a.summary, state.lang),
+    pickLang(a.bottom_line, state.lang),
+  ].filter(Boolean);
+  const text = parts.join('. ');
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = state.lang==='hi' ? 'hi-IN' : 'en-IN';
+  u.lang = (state.lang==='hi' || state.lang==='hg') ? 'hi-IN' : 'en-IN';
   u.rate = 0.95;
   const voices = speechSynthesis.getVoices();
   const v = voices.find(v => v.lang.startsWith(u.lang)) || voices.find(v => v.lang.startsWith('hi')) || voices.find(v => v.lang.startsWith('en'));
@@ -592,7 +732,7 @@ $('stopSpeakBtn').onclick = () => { speechSynthesis.cancel(); $('stopSpeakBtn').
 function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // initial status
-setStatus('Ready · Cloudflare Workers AI');
+setStatus('Ready · Gemini Flash Lite');
 </script>
 </body>
 </html>
