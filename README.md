@@ -1,105 +1,196 @@
 # Samjha Do — समझा दो
 
-Upload a rent agreement, offer letter, insurance policy, loan paper, or court notice → get a plain explanation in **Hindi, English, or Hinglish**, with red flags, key terms, legal-validity checks, and questions to ask before signing.
+**Don't sign what you don't understand.**
 
-**For end users:** Zero setup. No API keys. No downloads. Just open the site and upload.
-**For you (the deployer):** One Cloudflare account (free). No API keys needed.
+Upload any legal document — rent agreement, job offer letter, insurance policy, loan paper, court notice — and get a plain-language explanation in **Hindi (Devanagari)**, **English**, or **Hinglish**. The app flags traps, highlights what you owe vs what they owe, checks legality, and tells you exactly what to ask before signing.
 
----
+Built for India. Open source. Free to deploy.
 
-## Architecture
-
-- **Frontend:** single `index.html` in `public/` (Tailwind + PDF.js + mammoth + Tesseract OCR via CDNs)
-- **AI backend:** **Cloudflare Workers AI** free tier (10,000 neurons/day), Llama 3.3 70B primary with auto-fallback
-- **Zero keys needed:** Workers AI is accessed via a binding — no API key, no secrets, no env vars
+🔗 **Live:** [samjha-do.abhijainism2000.workers.dev](https://samjha-do.abhijainism2000.workers.dev)
 
 ---
 
-## Deploy (free, ~3 min)
+## How It Works
 
-### 1. Push this folder to GitHub
+```
+User uploads document (PDF / DOCX / Image / Text)
+        │
+        ▼
+   Browser parses it locally
+   (PDF.js · mammoth.js · Tesseract OCR)
+        │
+        ▼
+   Extracted text sent to Cloudflare Worker
+        │
+        ▼
+   Worker calls Groq API (Llama 3.1 8B, ultra-fast)
+        │
+        ▼
+   Structured JSON analysis returned
+        │
+        ▼
+   Beautiful UI renders: verdict, summary, red flags,
+   obligations, money, dates, legality, bottom line
+```
 
-### 2. Install wrangler & deploy
+Documents are parsed entirely on the user's device. Only the extracted text leaves the browser — sent over HTTPS to the Cloudflare Worker, which forwards it to Groq's API. Nothing is stored.
+
+---
+
+## Features
+
+- **Any document type** — rent agreements, offer letters, loan papers, insurance policies, court notices, NDAs, sale deeds
+- **Any format** — PDF, Word (.docx), images (JPG/PNG/WebP with OCR), plain text, or paste directly
+- **Scanned document support** — Tesseract OCR (English + Hindi) runs client-side
+- **Three languages** — Hindi (Devanagari), English, Hinglish — pick before upload, switch anytime
+- **Language caching** — switching languages uses cached results instantly; only fetches from AI if that language hasn't been generated yet
+- **Structured analysis** with color-coded sections:
+  - **Verdict banner** — safe / caution / risky / dangerous
+  - **Plain summary** — no jargon, 3-5 paragraphs
+  - **Parties** — who's who in the document
+  - **Your obligations vs their obligations** — side by side
+  - **Money & amounts** — rent, deposits, fees, penalties
+  - **Key dates** — start, end, notice periods, renewals
+  - **Exit / termination terms** — how to get out, penalties
+  - **Red flags** — severity, clause reference, why it's bad, how to fix it
+  - **Missing clauses** — protections that should be there but aren't
+  - **Questions to ask** — before you sign, with reasons
+  - **Legality checklist** — stamp paper, registration, witnesses, governing law
+  - **Bottom line** — sign / sign with changes / don't sign / consult lawyer
+- **Read aloud** — text-to-speech via Web Speech API (Hindi & English voices)
+- **Speech auto-stops** on language switch or page reload
+- **Zero setup for users** — no accounts, no API keys, no downloads
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Single `index.html` — vanilla JS, Tailwind CSS, no build step |
+| PDF parsing | PDF.js (client-side) |
+| Word parsing | mammoth.js (client-side) |
+| OCR | Tesseract.js v5 (English + Hindi, client-side) |
+| Fonts | Inter + Noto Sans Devanagari (Google Fonts) |
+| Backend | Cloudflare Worker (proxies to Groq, keeps API key secret) |
+| AI | Groq API — Llama 3.1 8B Instant (primary), Llama 3.3 70B (fallback) |
+| Hosting | Cloudflare Workers (free tier) |
+| TTS | Web Speech API (browser-native) |
+
+---
+
+## Deploy Your Own (free, ~5 min)
+
+### Prerequisites
+- A free [Cloudflare](https://dash.cloudflare.com) account
+- A free [Groq](https://console.groq.com) API key
+- Node.js installed locally
+
+### Steps
+
 ```bash
+# 1. Clone the repo
+git clone https://github.com/your-username/samjha-do.git
+cd samjha-do
+
+# 2. Install wrangler (Cloudflare CLI)
 npm install -g wrangler
 wrangler login
+
+# 3. Store your Groq API key as an encrypted secret
+wrangler secret put GROQ_API_KEY
+# paste your key when prompted
+
+# 4. Deploy
 wrangler deploy
 ```
 
 That's it. Your site is live at `https://samjha-do.<your-account>.workers.dev`.
 
 ### Health check
-```
-curl https://samjha-do.<your-account>.workers.dev/api/ai
-```
-Should return `{ "ok": true, "binding": "AI binding present ✅", ... }`.
-
----
-
-## Local development
 
 ```bash
-npm install -g wrangler
-wrangler dev
+curl https://samjha-do.<your-account>.workers.dev/api/ai
+# → { "ok": true, "key": "GROQ_API_KEY present ✅", "models": [...] }
 ```
-Runs at `http://localhost:8787` with Workers AI working locally.
 
 ---
 
-## File structure
+## Project Structure
 
 ```
 samjha-do/
-├── wrangler.toml           ← Worker config + AI binding + static assets
-├── src/worker.js           ← handles /api/ai → Workers AI (Llama 3.3 70B)
-├── public/index.html       ← the entire app UI + client JS
+├── wrangler.toml           ← Cloudflare Worker config + static assets
+├── src/
+│   └── worker.js           ← API route /api/ai → Groq (Llama 3.1 8B)
+├── public/
+│   └── index.html          ← Entire app UI + client-side JS
 └── README.md
 ```
 
+Cloudflare serves `public/` as static assets. The Worker in `src/worker.js` handles `/api/ai` and proxies everything else to static files.
+
 ---
 
-## Free tier limits
+## Local Development
 
-| Limit | Value |
+```bash
+# Full local dev with API working
+wrangler dev
+
+# Or static-only (AI calls won't work)
+cd public && python3 -m http.server 8000
+```
+
+`wrangler dev` runs at `http://localhost:8787` with the `/api/ai` route fully functional.
+
+---
+
+## Free Tier Limits
+
+| Resource | Limit |
 |---|---|
-| Workers AI free quota | 10,000 neurons/day |
-| Neurons per analysis | ~8–15 (depends on doc length) |
-| Analyses/day (free) | **~700–1,200** |
-| Fallback models | Llama 3.1 8B, Mistral Small 3.1 24B |
+| Groq free tier | 14,400 requests/day, 30 requests/min |
+| Cloudflare Workers free | 100,000 requests/day |
+| Typical response time | 1–3 seconds |
+| Tokens per analysis | ~800–1,200 (single language) |
 
-No credit card required.
-
----
-
-## Features
-
-- Upload PDF, DOCX, images (JPG/PNG/WebP), plain text — or paste text directly
-- Scanned PDFs + images → Tesseract OCR (English + Hindi) client-side
-- Auto-classifies document type (rent / offer / loan / insurance / court / NDA / other)
-- Verdict banner + bottom-line recommendation (sign / negotiate / don't sign / consult lawyer)
-- Parties, obligations (yours vs theirs), money table, key dates, exit terms
-- Red flags with severity, clause reference, explanation + suggested fix
-- Missing clauses detection, questions to ask, legality checklist
-- **Hindi (Devanagari) / English / Hinglish** — toggle anytime
-- Read-aloud via browser TTS
-- Works on any modern browser, desktop or mobile
+For 50 document analyses per day, you're using ~0.3% of Groq's free quota.
 
 ---
 
 ## Privacy
 
-- Documents are parsed and OCR'd entirely on the user's device
-- Only extracted text is sent to Cloudflare Workers AI for analysis
-- No data stored by this app
+- Documents are parsed and OCR'd **entirely on the user's device**
+- Only the extracted text is sent to the Cloudflare Worker → Groq API over HTTPS
+- **No data is stored** — not by the Worker, not by this app
+- Groq's API terms: inputs are not used for model training
+- The Groq API key is stored as an encrypted secret on Cloudflare, never exposed to the browser
+
+---
+
+## Contributing
+
+PRs welcome. Some ideas:
+
+- Add more Indian languages (Tamil, Telugu, Bengali, Marathi)
+- Improve OCR accuracy for handwritten documents
+- Add document comparison (compare two versions of a contract)
+- Export analysis as PDF
+- Add a "share analysis" feature
 
 ---
 
 ## License
 
-MIT
+MIT — fork it, ship it, improve it.
 
 ---
 
 ## Disclaimer
 
-This is an AI explanation — **not legal advice**. For high-stakes decisions, consult a qualified lawyer.
+This is an AI-powered explanation tool — **not legal advice**. For high-stakes decisions (large loans, property purchases, court cases), always consult a qualified lawyer. The AI may miss nuances or make errors. Use this as a starting point, not a final answer.
+
+---
+
+Built by [Abhishek Jain](https://github.com/Abhishek-Jain-12072000) & [Ritee Jain](https://github.com/RiteeJain14)· Made for India 🇮🇳
