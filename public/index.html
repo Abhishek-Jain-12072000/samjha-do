@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Samjha Do — Legal Documents in Plain Hindi & English</title>
-<meta name="description" content="Upload any legal document — rent agreement, job offer, insurance policy, loan paper, court notice. AI explains it in Hindi / English / Hinglish, flags traps, tells you what to ask before signing. 100% private — runs entirely in your browser." />
+<title>Samjha Do — Legal & Medical Docs in Plain Hindi & English</title>
+<meta name="description" content="Upload any legal document or medical report. AI explains it in Hindi / English / Hinglish, flags risks, tells you what to ask. 100% private — runs entirely in your browser." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -29,16 +29,33 @@
   .dragover { border-color:#ea580c !important; background:#fff7ed !important; }
   .progress-bar { height: 8px; background: #fed7aa; border-radius: 999px; overflow:hidden; }
   .progress-bar > div { height: 100%; background: linear-gradient(90deg,#ea580c,#b91c1c); transition: width .3s; }
+  /* Health-mode palette (teal/blue) */
+  body.health-mode { background: linear-gradient(135deg,#f0fdfa 0%,#eff6ff 100%); }
+  body.health-mode .card { box-shadow: 0 10px 30px rgba(13,148,136,0.08); }
+  body.health-mode .btn-primary { background: linear-gradient(90deg,#0d9488,#1e40af); }
+  body.health-mode .gradient-text { background: linear-gradient(90deg,#0d9488,#1e40af); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  body.health-mode .tab-active { background: linear-gradient(90deg,#0d9488,#1e40af); }
+  body.health-mode .dragover { border-color:#0d9488 !important; background:#f0fdfa !important; }
+
+  .mode-card { cursor:pointer; transition: transform .15s, box-shadow .15s; }
+  .mode-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.1); }
+  .modal-backdrop { position: fixed; inset:0; background: rgba(15,23,42,0.5); z-index: 50; display:flex; align-items:center; justify-content:center; padding: 1rem; }
+  .sev-critical { background: linear-gradient(135deg,#7f1d1d,#dc2626); color:white; }
+  @keyframes pulse-red { 0%{box-shadow:0 0 0 0 rgba(220,38,38,0.7);} 70%{box-shadow:0 0 0 20px rgba(220,38,38,0);} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0);} }
+  .pulse-red { animation: pulse-red 1.5s infinite; }
+  .test-status-normal { color:#16a34a; }
+  .test-status-low, .test-status-high { color:#d97706; }
+  .test-status-critical { color:#dc2626; font-weight:700; }
 </style>
 </head>
 <body class="text-slate-800">
 
 <header class="max-w-6xl mx-auto px-4 pt-8 pb-4 flex items-center justify-between">
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3 cursor-pointer" id="logoHome">
     <div class="w-11 h-11 rounded-2xl btn-primary flex items-center justify-center text-white text-xl font-bold">स</div>
     <div>
       <h1 class="text-2xl font-bold">Samjha Do <span class="text-sm font-normal text-slate-500">समझा दो</span></h1>
-      <p class="text-xs text-slate-500">Legal docs in plain Hindi & English · 100% private</p>
+      <p class="text-xs text-slate-500" id="tagline">Legal & medical docs in plain Hindi & English · 100% private</p>
     </div>
   </div>
   <div class="flex items-center gap-3">
@@ -58,24 +75,57 @@ python3 -m http.server 8000
   </section>
 
 
-  <!-- HERO -->
-  <section class="text-center py-8">
-    <h2 class="text-4xl md:text-5xl font-bold leading-tight">
-      Don't sign what you <span class="gradient-text">don't understand</span>
-    </h2>
-    <p class="mt-3 text-slate-600 max-w-2xl mx-auto">
-      Upload any legal document — rent agreement, job offer, insurance, loan, court notice. Get a plain explanation in Hindi, English, or Hinglish. We flag the traps. We tell you what to ask before signing.
-    </p>
-    <p class="mt-2 devanagari text-slate-700">जो समझ नहीं आता, उसपर साइन मत करो। हम आसान भाषा में समझाएँगे।</p>
-    <p class="mt-4 text-xs text-slate-500">⚡ Zero setup for users · No API keys · Powered by Groq · Ultra-fast AI · Free · Open source</p>
+  <!-- MODE PICKER (landing) -->
+  <section id="modePicker" class="py-6">
+    <div class="text-center mb-8">
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">
+        Don't sign — or swallow — what you <span class="gradient-text">don't understand</span>
+      </h2>
+      <p class="mt-3 text-slate-600 max-w-2xl mx-auto">
+        Pick what you want explained in plain Hindi, English or Hinglish. 100% private — parsing happens in your browser.
+      </p>
+      <p class="mt-2 devanagari text-slate-700">जो समझ नहीं आता, उसपर साइन मत करो — और दवा भी मत लो।</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div class="mode-card card p-8 text-center border-2 border-transparent hover:border-orange-400" data-mode="legal">
+        <div class="text-6xl mb-4">⚖️</div>
+        <h3 class="text-2xl font-bold mb-2">Legal document</h3>
+        <p class="text-sm text-slate-500">कानूनी दस्तावेज़</p>
+        <p class="text-sm text-slate-600 mt-3">Rent agreements · Offer letters · Loans · Insurance · Court notices · NDAs</p>
+        <div class="mt-5 inline-block px-5 py-2 rounded-xl btn-primary text-sm font-semibold">Explain this →</div>
+        <p class="text-xs text-slate-400 mt-3">Fast · 1–2 sec · Llama 3.1 8B</p>
+      </div>
+
+      <div class="mode-card card p-8 text-center border-2 border-transparent hover:border-teal-400" data-mode="health">
+        <div class="text-6xl mb-4">🏥</div>
+        <h3 class="text-2xl font-bold mb-2">Medical report</h3>
+        <p class="text-sm text-slate-500">मेडिकल रिपोर्ट</p>
+        <p class="text-sm text-slate-600 mt-3">Blood tests · Lab reports · Prescriptions · X-ray / MRI notes · Discharge summaries</p>
+        <div class="mt-5 inline-block px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-blue-700 text-white text-sm font-semibold">Explain this →</div>
+        <p class="text-xs text-slate-400 mt-3">Accurate · 3–5 sec · Llama 3.3 70B</p>
+      </div>
+    </div>
+
+    <p class="mt-8 text-center text-xs text-slate-500">⚡ Document parsing happens in your browser · Only extracted text is sent for AI analysis</p>
+  </section>
+
+  <!-- HERO (shown after mode pick) -->
+  <section id="hero" class="hidden py-6">
+    <button id="backToModeBtn" class="mb-4 text-sm text-slate-600 hover:text-slate-900 inline-flex items-center gap-1">← Change mode</button>
+    <div class="text-center">
+      <h2 id="heroTitle" class="text-3xl md:text-4xl font-bold leading-tight"></h2>
+      <p id="heroSub" class="mt-3 text-slate-600 max-w-2xl mx-auto"></p>
+      <p id="heroSubHi" class="mt-2 devanagari text-slate-700"></p>
+    </div>
   </section>
 
 
   <!-- UPLOAD -->
-  <section id="uploadSection" class="card p-6 md:p-8">
+  <section id="uploadSection" class="card p-6 md:p-8 hidden">
     <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 md:p-12 text-center transition-all">
-      <div class="text-5xl mb-3">📄</div>
-      <h3 class="text-xl font-semibold">Upload your document</h3>
+      <div id="uploadIcon" class="text-5xl mb-3">📄</div>
+      <h3 id="uploadTitle" class="text-xl font-semibold">Upload your document</h3>
       <p class="text-slate-500 text-sm mt-1">PDF, Word (.docx), Image (JPG/PNG), or Text — up to 20 MB</p>
 
       <div class="mt-5 inline-flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
@@ -104,11 +154,17 @@ python3 -m http.server 8000
       </div>
     </div>
 
-    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+    <div id="legalExamples" class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
       <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">🏠</div><div class="text-xs mt-1 font-medium">Rent / Lease</div></div>
       <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">💼</div><div class="text-xs mt-1 font-medium">Offer Letter</div></div>
       <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">💰</div><div class="text-xs mt-1 font-medium">Loan / Insurance</div></div>
       <div class="p-3 rounded-xl bg-orange-50"><div class="text-2xl">⚖️</div><div class="text-xs mt-1 font-medium">Court Notice</div></div>
+    </div>
+    <div id="healthExamples" class="hidden mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+      <div class="p-3 rounded-xl bg-teal-50"><div class="text-2xl">🩸</div><div class="text-xs mt-1 font-medium">Blood Test</div></div>
+      <div class="p-3 rounded-xl bg-teal-50"><div class="text-2xl">💊</div><div class="text-xs mt-1 font-medium">Prescription</div></div>
+      <div class="p-3 rounded-xl bg-teal-50"><div class="text-2xl">🔬</div><div class="text-xs mt-1 font-medium">Lab Report</div></div>
+      <div class="p-3 rounded-xl bg-teal-50"><div class="text-2xl">🏥</div><div class="text-xs mt-1 font-medium">Discharge / Scan</div></div>
     </div>
   </section>
 
@@ -128,10 +184,11 @@ python3 -m http.server 8000
           <p class="text-xs uppercase tracking-wider text-slate-500">Document type</p>
           <h3 id="docType" class="text-2xl font-bold">—</h3>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
           <button id="speakBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm flex items-center gap-2">🔊 <span>Speak</span></button>
           <button id="stopSpeakBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm hidden">⏹ Stop</button>
           <button id="resetBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">↺ New document</button>
+          <button id="changeModeBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm">⇄ Change mode</button>
         </div>
       </div>
     </div>
@@ -150,63 +207,153 @@ python3 -m http.server 8000
       <div id="summary" class="prose max-w-none text-slate-700 leading-relaxed"></div>
     </div>
 
-    <div class="grid md:grid-cols-2 gap-6">
-      <div class="card p-6">
-        <h3 class="font-bold text-lg mb-3">👥 Parties</h3>
-        <div id="parties" class="space-y-2"></div>
+    <!-- LEGAL-ONLY RESULT CARDS -->
+    <div id="legalResults" class="space-y-6">
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-3">👥 Parties</h3>
+          <div id="parties" class="space-y-2"></div>
+        </div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-3">📅 Key dates</h3>
+          <div id="dates" class="space-y-2"></div>
+        </div>
       </div>
+
       <div class="card p-6">
-        <h3 class="font-bold text-lg mb-3">📅 Key dates</h3>
-        <div id="dates" class="space-y-2"></div>
+        <h3 class="font-bold text-lg mb-3">💰 Money &amp; amounts</h3>
+        <div id="money" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-3">✅ What you must do</h3>
+          <div id="yourObligations" class="space-y-2"></div>
+        </div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-3">🤝 What they must do</h3>
+          <div id="theirObligations" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">🚪 Exit / termination terms</h3>
+        <div id="exitTerms" class="text-slate-700"></div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">🚩 Red flags &amp; traps</h3>
+        <div id="redFlags" class="space-y-3"></div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">🕳️ Missing clauses (should be there, but aren't)</h3>
+        <div id="missingClauses" class="space-y-2"></div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">❓ Ask before you sign</h3>
+        <div id="questions" class="space-y-3"></div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">⚖️ Is this document legally proper?</h3>
+        <div id="legality" class="space-y-3"></div>
       </div>
     </div>
 
-    <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">💰 Money &amp; amounts</h3>
-      <div id="money" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-    </div>
+    <!-- HEALTH-ONLY RESULT CARDS -->
+    <div id="healthResults" class="hidden space-y-6">
 
-    <div class="grid md:grid-cols-2 gap-6">
       <div class="card p-6">
-        <h3 class="font-bold text-lg mb-3">✅ What you must do</h3>
-        <div id="yourObligations" class="space-y-2"></div>
+        <h3 class="font-bold text-lg mb-3">🧪 Test results</h3>
+        <p class="text-xs text-slate-500 mb-3">Your values, reference ranges, and what each one means in plain language.</p>
+        <div id="testResults" class="space-y-3"></div>
       </div>
+
       <div class="card p-6">
-        <h3 class="font-bold text-lg mb-3">🤝 What they must do</h3>
-        <div id="theirObligations" class="space-y-2"></div>
+        <h3 class="font-bold text-lg mb-3">🔎 What this could suggest</h3>
+        <p class="text-xs text-slate-500 mb-3">Possibilities only — not a diagnosis. Only a doctor can confirm.</p>
+        <div id="possibleConditions" class="space-y-3"></div>
       </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">🚩 Red flags</h3>
+        <div id="healthRedFlags" class="space-y-3"></div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-3">🥗 Diet &amp; lifestyle</h3>
+          <div id="lifestyle" class="space-y-2"></div>
+        </div>
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-3">💊 Medications mentioned</h3>
+          <div id="medications" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="card p-6 border-l-4 border-blue-500 bg-blue-50">
+        <h3 class="font-bold text-lg mb-2">👨‍⚕️ When to see a doctor</h3>
+        <div id="seeDoctor" class="text-slate-700"></div>
+        <div id="specialist" class="mt-3 text-sm font-medium text-blue-900"></div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-3">❓ Questions to ask your doctor</h3>
+        <div id="healthQuestions" class="space-y-3"></div>
+      </div>
+
     </div>
 
-    <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">🚪 Exit / termination terms</h3>
-      <div id="exitTerms" class="text-slate-700"></div>
-    </div>
-
-    <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">🚩 Red flags &amp; traps</h3>
-      <div id="redFlags" class="space-y-3"></div>
-    </div>
-
-    <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">🕳️ Missing clauses (should be there, but aren't)</h3>
-      <div id="missingClauses" class="space-y-2"></div>
-    </div>
-
-    <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">❓ Ask before you sign</h3>
-      <div id="questions" class="space-y-3"></div>
-    </div>
-
-    <div class="card p-6">
-      <h3 class="font-bold text-lg mb-3">⚖️ Is this document legally proper?</h3>
-      <div id="legality" class="space-y-3"></div>
-    </div>
-
-    <!-- Bottom line -->
+    <!-- Bottom line (shared) -->
     <div id="bottomLine" class="card p-6 border-l-8"></div>
 
-    <p class="text-xs text-slate-400 italic text-center">This is an AI explanation, not legal advice. For high-stakes decisions, consult a qualified lawyer.</p>
+    <p id="disclaimerText" class="text-xs text-slate-400 italic text-center">This is an AI explanation, not legal advice. For high-stakes decisions, consult a qualified lawyer.</p>
   </section>
+
+  <!-- CRITICAL HEALTH TAKEOVER -->
+  <section id="criticalTakeover" class="hidden sev-critical card p-8 mt-6 text-center">
+    <div class="text-6xl mb-3 pulse-red inline-block rounded-full p-4">🚨</div>
+    <h2 class="text-3xl font-bold">Seek medical attention now</h2>
+    <p class="devanagari text-xl mt-2">तुरंत डॉक्टर से मिलें</p>
+    <p class="mt-3 text-white/90 max-w-xl mx-auto" id="criticalMsg">The AI flagged this report as potentially critical. Do not wait — go to the nearest hospital or call an ambulance.</p>
+    <div class="mt-5 flex flex-wrap gap-3 justify-center">
+      <a href="tel:108" class="px-5 py-3 rounded-xl bg-white text-red-700 font-bold">📞 Call 108 (Ambulance)</a>
+      <a href="tel:102" class="px-5 py-3 rounded-xl bg-white/20 text-white border border-white/40 font-semibold">📞 102</a>
+      <button id="criticalContinue" class="px-5 py-3 rounded-xl bg-white/20 text-white border border-white/40 font-semibold">I understand — show report</button>
+    </div>
+    <p class="text-xs text-white/70 mt-4">This is an AI warning, not a medical diagnosis. A qualified doctor must evaluate you.</p>
+  </section>
+
+  <!-- HEALTH CONSENT MODAL -->
+  <div id="consentModal" class="modal-backdrop hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+      <div class="text-center">
+        <div class="text-5xl mb-2">🏥</div>
+        <h3 class="text-xl font-bold">Before you continue — please read</h3>
+        <p class="devanagari text-sm text-slate-600 mt-1">आगे बढ़ने से पहले — कृपया पढ़ें</p>
+      </div>
+      <div class="mt-4 text-sm text-slate-700 space-y-2 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg">
+        <p><b>Samjha Do is not a doctor.</b> It is an AI tool that translates medical reports into plain language. It can make mistakes, miss nuances, or misread numbers.</p>
+        <p>Do <b>not</b> use this output to:</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>Start, stop or change any medication</li>
+          <li>Delay a visit to a qualified doctor</li>
+          <li>Replace professional medical advice</li>
+        </ul>
+        <p class="devanagari">यह सिर्फ़ जानकारी के लिए है। दवा या इलाज के लिए डॉक्टर से मिलें।</p>
+      </div>
+      <label class="mt-4 flex items-start gap-2 text-sm cursor-pointer">
+        <input type="checkbox" id="consentCheck" class="mt-1 w-4 h-4" />
+        <span>I understand Samjha Do is an educational AI tool, not a substitute for a qualified doctor. I will not make medical decisions based solely on this analysis.</span>
+      </label>
+      <div class="mt-5 flex gap-2 justify-end">
+        <button id="consentCancel" class="px-4 py-2 rounded-lg border border-slate-300 text-sm">Cancel</button>
+        <button id="consentAgree" class="px-5 py-2 rounded-lg bg-gradient-to-r from-teal-600 to-blue-700 text-white text-sm font-semibold opacity-50" disabled>I agree — continue</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ERROR -->
   <section id="errorSection" class="card p-6 mt-6 hidden border-l-4 border-red-500">
@@ -219,7 +366,7 @@ python3 -m http.server 8000
 </main>
 
 <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-xs text-slate-500">
-  Samjha Do · Open source · Powered by Groq · Ultra-fast AI · Free · Made for India 🇮🇳 · Not legal advice
+  Samjha Do · Open source · Powered by Groq · Free · Made for India 🇮🇳 · Not legal or medical advice
 </footer>
 
 <script>
@@ -238,12 +385,89 @@ const state = {
   rawText: '',
   analysis: null,
   lang: 'hi',
-  cache: {},  // { hi: analysisObj, en: analysisObj, hg: analysisObj }
+  mode: null,                   // 'legal' | 'health'  (null until user picks)
+  cache: {},                    // cache[mode][lang] = analysisObj
+  consentedHealth: localStorage.getItem('samjha_health_consent') === '1',
 };
 
 const API_URL = new URLSearchParams(location.search).get('api') || '/api/ai';
 
 function setStatus(t){ $('modelLabel').textContent = t; }
+
+/* ---------- Mode picker ---------- */
+document.querySelectorAll('.mode-card').forEach(c => c.addEventListener('click', () => {
+  const m = c.dataset.mode;
+  if (m === 'health' && !state.consentedHealth) return openConsentModal();
+  setMode(m);
+}));
+
+function setMode(m){
+  state.mode = m;
+  document.body.classList.toggle('health-mode', m === 'health');
+  $('modePicker').classList.add('hidden');
+  $('hero').classList.remove('hidden');
+  $('uploadSection').classList.remove('hidden');
+  if (m === 'legal'){
+    $('heroTitle').innerHTML = 'Don\'t sign what you <span class="gradient-text">don\'t understand</span>';
+    $('heroSub').textContent = 'Upload any legal document — rent, offer, insurance, loan, court notice. We flag the traps and tell you what to ask.';
+    $('heroSubHi').textContent = 'जो समझ नहीं आता, उसपर साइन मत करो।';
+    $('uploadIcon').textContent = '📄';
+    $('uploadTitle').textContent = 'Upload your legal document';
+    $('legalExamples').classList.remove('hidden');
+    $('healthExamples').classList.add('hidden');
+    $('disclaimerText').textContent = 'This is an AI explanation, not legal advice. For high-stakes decisions, consult a qualified lawyer.';
+    setStatus('Ready · Legal · Llama 3.1 8B');
+  } else {
+    $('heroTitle').innerHTML = 'Don\'t take medicine you <span class="gradient-text">don\'t understand</span>';
+    $('heroSub').textContent = 'Upload a blood test, prescription, lab report or discharge summary. We explain each value and tell you when to see a doctor.';
+    $('heroSubHi').textContent = 'जो रिपोर्ट समझ नहीं आती, हम आसान भाषा में बताएँगे।';
+    $('uploadIcon').textContent = '🏥';
+    $('uploadTitle').textContent = 'Upload your medical report';
+    $('legalExamples').classList.add('hidden');
+    $('healthExamples').classList.remove('hidden');
+    $('disclaimerText').textContent = 'This is an AI explanation, NOT medical advice. Always verify with a qualified doctor before any medical decision.';
+    setStatus('Ready · Health · Llama 3.3 70B');
+  }
+}
+
+function goHome(){
+  stopSpeech();
+  $('modePicker').classList.remove('hidden');
+  $('hero').classList.add('hidden');
+  $('uploadSection').classList.add('hidden');
+  $('resultsSection').classList.add('hidden');
+  $('errorSection').classList.add('hidden');
+  $('progressSection').classList.add('hidden');
+  $('criticalTakeover').classList.add('hidden');
+  $('pasteArea').classList.add('hidden');
+  document.body.classList.remove('health-mode');
+  state.mode = null; state.rawText = ''; state.analysis = null; state.cache = {};
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('logoHome').addEventListener('click', goHome);
+$('backToModeBtn').addEventListener('click', goHome);
+$('changeModeBtn').addEventListener('click', goHome);
+
+/* ---------- Consent modal ---------- */
+function openConsentModal(){
+  $('consentModal').classList.remove('hidden');
+  $('consentCheck').checked = false;
+  $('consentAgree').disabled = true;
+  $('consentAgree').classList.add('opacity-50');
+}
+function closeConsentModal(){ $('consentModal').classList.add('hidden'); }
+$('consentCheck').addEventListener('change', e => {
+  $('consentAgree').disabled = !e.target.checked;
+  $('consentAgree').classList.toggle('opacity-50', !e.target.checked);
+});
+$('consentCancel').onclick = closeConsentModal;
+$('consentAgree').onclick = () => {
+  if (!$('consentCheck').checked) return;
+  localStorage.setItem('samjha_health_consent', '1');
+  state.consentedHealth = true;
+  closeConsentModal();
+  setMode('health');
+};
 
 /* ---------- File handling ---------- */
 const dropZone = $('dropZone');
@@ -361,7 +585,7 @@ async function runAI(prompt){
   const r = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt })
+    body: JSON.stringify({ prompt, mode: state.mode })
   });
   if (!r.ok) {
     let msg = 'HTTP ' + r.status;
@@ -370,7 +594,7 @@ async function runAI(prompt){
   }
   const j = await r.json();
   if (!j.text) throw new Error('Empty response from AI. Try again.');
-  setStatus('Ready · Groq AI');
+  setStatus(state.mode === 'health' ? 'Ready · Health · Llama 3.3 70B' : 'Ready · Legal · Llama 3.1 8B');
   return j.text;
 }
 
@@ -397,21 +621,27 @@ async function processText(text, skipCache){
   // New document? Clear cache
   if (newText !== state.rawText) { state.cache = {}; }
   state.rawText = newText;
+  const mode = state.mode || 'legal';
   const lang = state.lang || 'hi';
+  state.cache[mode] = state.cache[mode] || {};
   // Return cached result if available
-  if (!skipCache && state.cache[lang]) {
-    state.analysis = state.cache[lang];
+  if (!skipCache && state.cache[mode][lang]) {
+    state.analysis = state.cache[mode][lang];
     renderResults();
     return;
   }
   try {
-    showProgress('Analyzing with AI…', 'Powered by Groq · Ultra-fast AI · Free');
-    const prompt = buildPrompt(state.rawText);
+    const progressSub = mode === 'health'
+      ? 'Powered by Groq · Llama 3.3 70B · High-accuracy'
+      : 'Powered by Groq · Llama 3.1 8B · Ultra-fast';
+    showProgress('Analyzing with AI…', progressSub);
+    const prompt = mode === 'health' ? buildHealthPrompt(state.rawText) : buildPrompt(state.rawText);
     const raw = await runAI(prompt);
     const json = parseJson(raw);
-    if (!json || !json.doc_type) throw new Error('The AI returned an unparseable response. Try again.');
+    const valid = mode === 'health' ? (json && json.severity) : (json && json.doc_type);
+    if (!valid) throw new Error('The AI returned an unparseable response. Try again.');
     state.analysis = json;
-    state.cache[lang] = json;  // cache for this language
+    state.cache[mode][lang] = json;
     renderResults();
   } catch(err){
     console.error(err);
@@ -458,6 +688,67 @@ ${text}
 """`;
 }
 
+function buildHealthPrompt(text){
+  const L = state.lang || 'hi';
+  const langName = L==='hi' ? 'Hindi (Devanagari script हिंदी, NEVER Roman)' : L==='hg' ? 'Hinglish (Roman-script Hindi mixed with English, casual tone)' : 'English (simple, no medical jargon)';
+
+  return `You are Samjha Do Health. Analyse this medical report (blood test, prescription, lab report, scan note, or discharge summary) for an Indian patient. Respond ONLY in ${langName}. Return valid JSON only — no markdown, no code fences.
+
+ALL text fields must be in ${langName}. Use key "t" for text values (single language only).
+
+{
+  "doc_type": "Blood Test | Lipid Profile | Prescription | X-Ray | MRI | Discharge Summary | Other",
+  "severity": { "level": "normal|minor|moderate|serious|critical", "t": "<1 sentence — what this means overall>" },
+  "summary": "<3-5 short paragraphs explaining the report in plain language. No jargon.>",
+  "patient": { "name": "<if mentioned>", "age": "<if mentioned>", "gender": "<if mentioned>", "date": "<report date if mentioned>" },
+  "test_results": [
+    {
+      "name": "Hemoglobin",
+      "value": "10.2 g/dL",
+      "reference": "12–16 g/dL",
+      "status": "normal|low|high|critical",
+      "meaning": "<1-2 sentences in plain language: what this value means for the patient>"
+    }
+  ],
+  "possible_conditions": [
+    { "name": "Iron-deficiency anemia", "likelihood": "possible|likely|unlikely", "why": "<why this report could suggest it — phrased as possibility, not diagnosis>" }
+  ],
+  "red_flags": [
+    { "severity": "high|medium|low", "title": "...", "why": "<why this is concerning>", "action": "<what to do — see doctor, repeat test, go to ER, etc.>" }
+  ],
+  "medications": [
+    { "name": "Metformin 500mg", "purpose": "<plain language: what this drug does>", "caution": "<common side effects or interactions — or empty if none notable>" }
+  ],
+  "lifestyle": ["<diet/exercise/habit suggestion 1>", "<suggestion 2>"],
+  "see_doctor": { "when": "today|within 24h|within a week|routine follow-up|emergency now", "t": "<1-2 sentences on urgency and what to tell the doctor>" },
+  "specialist": "<type of doctor to see, e.g. 'General Physician', 'Cardiologist', 'Endocrinologist'>",
+  "questions_to_ask": [{ "q": "...", "why": "..." }],
+  "bottom_line": { "action": "all_good|monitor|see_doctor|urgent|emergency", "t": "<2-3 sentence plain-language bottom line>" }
+}
+
+SEVERITY RULES (most important):
+- "normal"   → all values in range, nothing concerning
+- "minor"    → slightly out of range, lifestyle-manageable
+- "moderate" → clearly out of range, needs doctor visit soon
+- "serious"  → significant abnormality, see doctor within 24h
+- "critical" → potentially dangerous values (e.g. Hb < 7, glucose > 400, K+ outside 3.0–6.0, very abnormal cardiac/kidney/liver markers, signs of organ failure, severe infection markers). Tell patient to seek emergency care.
+
+RULES:
+- JSON only. Every text value in ${langName}.
+- Use ACTUAL numbers from the report. Do NOT invent values or ranges.
+- For conditions: always phrase as "could suggest" / "possibility of" — NEVER give a definitive diagnosis.
+- For medications: only include drugs explicitly named in the document.
+- Empty array [] if section doesn't apply. Never omit a key.
+- 3-15 test_results (all tests in report), 0-5 possible_conditions, 0-8 red_flags, 0-10 medications, 2-6 lifestyle, 3-6 questions.
+- Use Indian reference ranges where relevant.
+- Remind that this is an AI tool and a qualified doctor must confirm everything.
+
+DOCUMENT:
+"""
+${text}
+"""`;
+}
+
 function parseJson(s){
   if (!s) return null;
   s = s.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
@@ -480,14 +771,47 @@ const ACTION_STYLE = {
   consult_lawyer:    { bg:'#eff6ff', border:'#2563eb', icon:'⚖️', label_en:'Consult a lawyer first',      label_hi:'पहले वकील से मिलें',          label_hg:'Pehle lawyer se milo' },
 };
 
+const SEVERITY_STYLE = {
+  normal:   { bg:'#f0fdf4', border:'#16a34a', icon:'✅', label_en:'All values look normal',          label_hi:'सभी मान सामान्य लग रहे हैं',     label_hg:'Sab normal lag raha hai' },
+  minor:    { bg:'#fffbeb', border:'#d97706', icon:'🟡', label_en:'Minor issues — lifestyle review', label_hi:'छोटी गड़बड़ी — जीवनशैली देखें',   label_hg:'Chhoti gadbad — lifestyle dekho' },
+  moderate: { bg:'#fff7ed', border:'#ea580c', icon:'🟠', label_en:'Moderate — see a doctor soon',    label_hi:'मध्यम — जल्द डॉक्टर से मिलें',  label_hg:'Moderate — jaldi doctor se milo' },
+  serious:  { bg:'#fef2f2', border:'#dc2626', icon:'🔴', label_en:'Serious — see a doctor within 24h', label_hi:'गंभीर — 24 घंटे में डॉक्टर से मिलें', label_hg:'Serious — 24 ghante mein doctor se milo' },
+  critical: { bg:'#7f1d1d', border:'#7f1d1d', icon:'🚨', label_en:'Critical — seek emergency care',  label_hi:'अत्यंत गंभीर — तुरंत अस्पताल जाएँ', label_hg:'Critical — turant hospital jao' },
+};
+const HEALTH_ACTION_STYLE = {
+  all_good:   { bg:'#f0fdf4', border:'#16a34a', icon:'✅', label_en:'All looks good',                 label_hi:'सब ठीक लग रहा है',              label_hg:'Sab thik lag raha hai' },
+  monitor:    { bg:'#fffbeb', border:'#d97706', icon:'👁️', label_en:'Monitor & retest',                label_hi:'निगरानी करें और दोबारा जाँच',    label_hg:'Monitor karo aur retest' },
+  see_doctor: { bg:'#eff6ff', border:'#2563eb', icon:'👨‍⚕️', label_en:'See a doctor',                label_hi:'डॉक्टर से मिलें',               label_hg:'Doctor se milo' },
+  urgent:     { bg:'#fef2f2', border:'#dc2626', icon:'⚠️', label_en:'See a doctor within 24 hours',   label_hi:'24 घंटे के भीतर डॉक्टर से मिलें', label_hg:'24 ghante mein doctor se milo' },
+  emergency:  { bg:'#7f1d1d', border:'#7f1d1d', icon:'🚨', label_en:'Emergency — go to hospital now', label_hi:'आपातकाल — तुरंत अस्पताल जाएँ',   label_hg:'Emergency — abhi hospital jao' },
+};
+const TEST_STATUS_ICON = { normal:'✅', low:'🔽', high:'🔼', critical:'🚨' };
+
 function renderResults(){
   $('progressSection').classList.add('hidden');
   $('resultsSection').classList.remove('hidden');
+  $('criticalTakeover').classList.add('hidden');
   const a = state.analysis;
   $('docType').textContent = a.doc_type || 'Document';
-  // default tabs to the language the user picked on upload
+
+  const isHealth = state.mode === 'health';
+  $('legalResults').classList.toggle('hidden', isHealth);
+  $('healthResults').classList.toggle('hidden', !isHealth);
+
+  // Critical-case takeover — show before results
+  if (isHealth && a.severity && a.severity.level === 'critical'){
+    $('resultsSection').classList.add('hidden');
+    $('criticalTakeover').classList.remove('hidden');
+    $('criticalMsg').textContent = txt(a.severity) || $('criticalMsg').textContent;
+  }
+
   renderForLang(state.lang || 'hi');
 }
+
+$('criticalContinue').onclick = () => {
+  $('criticalTakeover').classList.add('hidden');
+  $('resultsSection').classList.remove('hidden');
+};
 
 // helper: get text from new single-lang schema ("t" key or string or old multi-lang obj)
 function txt(obj){
@@ -502,27 +826,51 @@ function renderForLang(lang){
   const a = state.analysis || {};
   const isHi = lang==='hi';
   const cls = isHi ? 'devanagari' : '';
+  const isHealth = state.mode === 'health';
 
-  // --- Verdict banner ---
-  const v = a.verdict || {};
-  const vs = VERDICT_STYLE[v.level] || VERDICT_STYLE.caution;
-  const vLabel = isHi ? vs.label_hi : (lang==='hg' ? vs.label_hg : vs.label_en);
-  $('verdictBanner').style.background = vs.bg;
-  $('verdictBanner').style.borderColor = vs.border;
-  $('verdictBanner').innerHTML = `
-    <div class="flex items-start gap-3">
-      <div class="text-3xl">${vs.icon}</div>
-      <div>
-        <div class="text-xs uppercase tracking-wider text-slate-500">Verdict</div>
-        <div class="text-lg font-bold ${cls}">${escapeHtml(vLabel)}</div>
-        <div class="mt-1 text-slate-700 ${cls}">${escapeHtml(txt(v))}</div>
-      </div>
-    </div>`;
+  // --- Verdict / Severity banner ---
+  const banner = $('verdictBanner');
+  if (isHealth){
+    const sv = a.severity || {};
+    const ss = SEVERITY_STYLE[sv.level] || SEVERITY_STYLE.normal;
+    const sLabel = isHi ? ss.label_hi : (lang==='hg' ? ss.label_hg : ss.label_en);
+    const isCrit = sv.level === 'critical';
+    banner.style.background = ss.bg;
+    banner.style.borderColor = ss.border;
+    banner.style.color = isCrit ? 'white' : '';
+    banner.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="text-3xl">${ss.icon}</div>
+        <div>
+          <div class="text-xs uppercase tracking-wider ${isCrit?'text-white/80':'text-slate-500'}">Severity</div>
+          <div class="text-lg font-bold ${cls}">${escapeHtml(sLabel)}</div>
+          <div class="mt-1 ${isCrit?'text-white':'text-slate-700'} ${cls}">${escapeHtml(txt(sv))}</div>
+        </div>
+      </div>`;
+  } else {
+    const v = a.verdict || {};
+    const vs = VERDICT_STYLE[v.level] || VERDICT_STYLE.caution;
+    const vLabel = isHi ? vs.label_hi : (lang==='hg' ? vs.label_hg : vs.label_en);
+    banner.style.background = vs.bg;
+    banner.style.borderColor = vs.border;
+    banner.style.color = '';
+    banner.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="text-3xl">${vs.icon}</div>
+        <div>
+          <div class="text-xs uppercase tracking-wider text-slate-500">Verdict</div>
+          <div class="text-lg font-bold ${cls}">${escapeHtml(vLabel)}</div>
+          <div class="mt-1 text-slate-700 ${cls}">${escapeHtml(txt(v))}</div>
+        </div>
+      </div>`;
+  }
 
   // --- Summary ---
   const sum = txt(a.summary);
   $('summary').className = 'prose max-w-none text-slate-700 leading-relaxed ' + cls;
   $('summary').innerHTML = sum.split(/\n+/).map(p => `<p class="mb-3">${escapeHtml(p)}</p>`).join('');
+
+  if (isHealth){ renderHealth(a, lang, cls); return; }
 
   // --- Parties ---
   const pEl = $('parties'); pEl.innerHTML='';
@@ -631,20 +979,134 @@ function renderForLang(lang){
   });
 
   // --- Bottom line ---
+  renderBottomLine(a, lang, cls, false);
+}
+
+function renderBottomLine(a, lang, cls, isHealth){
+  const isHi = lang==='hi';
   const bl = a.bottom_line || {};
-  const bs = ACTION_STYLE[bl.action] || ACTION_STYLE.consult_lawyer;
+  const styleMap = isHealth ? HEALTH_ACTION_STYLE : ACTION_STYLE;
+  const fallback = isHealth ? HEALTH_ACTION_STYLE.see_doctor : ACTION_STYLE.consult_lawyer;
+  const bs = styleMap[bl.action] || fallback;
   const blLabel = isHi ? bs.label_hi : (lang==='hg' ? bs.label_hg : bs.label_en);
+  const isEmerg = isHealth && bl.action === 'emergency';
   $('bottomLine').style.background = bs.bg;
   $('bottomLine').style.borderColor = bs.border;
+  $('bottomLine').style.color = isEmerg ? 'white' : '';
   $('bottomLine').innerHTML = `
     <div class="flex items-start gap-3">
       <div class="text-3xl">${bs.icon}</div>
       <div>
-        <div class="text-xs uppercase tracking-wider text-slate-500">Bottom line</div>
+        <div class="text-xs uppercase tracking-wider ${isEmerg?'text-white/80':'text-slate-500'}">Bottom line</div>
         <div class="text-lg font-bold ${cls}">${escapeHtml(blLabel)}</div>
-        <div class="mt-1 text-slate-700 ${cls}">${escapeHtml(txt(bl))}</div>
+        <div class="mt-1 ${isEmerg?'text-white':'text-slate-700'} ${cls}">${escapeHtml(txt(bl))}</div>
       </div>
     </div>`;
+}
+
+function renderHealth(a, lang, cls){
+  const isHi = lang==='hi';
+
+  // --- Test results ---
+  const tr = $('testResults'); tr.innerHTML = '';
+  (a.test_results||[]).forEach(t => {
+    const status = t.status || 'normal';
+    const ic = TEST_STATUS_ICON[status] || '•';
+    const statusCls = status==='normal' ? 'test-status-normal' : status==='critical' ? 'test-status-critical' : 'test-status-high';
+    const meaning = typeof t.meaning === 'string' ? t.meaning : txt(t.meaning);
+    const div = document.createElement('div');
+    div.className = 'p-4 rounded-xl border border-slate-200';
+    div.innerHTML = `
+      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div class="font-semibold">${ic} ${escapeHtml(t.name||'—')}</div>
+        <div class="text-lg font-bold ${statusCls}">${escapeHtml(t.value||'—')}</div>
+        <div class="text-xs text-slate-500">Ref: ${escapeHtml(t.reference||'—')}</div>
+        <div class="text-xs font-medium ${statusCls} uppercase">${escapeHtml(status)}</div>
+      </div>
+      ${meaning ? `<div class="text-sm mt-2 text-slate-700 ${cls}">${escapeHtml(meaning)}</div>` : ''}`;
+    tr.appendChild(div);
+  });
+  if (!(a.test_results||[]).length) tr.innerHTML = `<div class="text-sm text-slate-400">—</div>`;
+
+  // --- Possible conditions ---
+  const pc = $('possibleConditions'); pc.innerHTML = '';
+  (a.possible_conditions||[]).forEach(c => {
+    const why = typeof c.why === 'string' ? c.why : txt(c.why);
+    const lk = c.likelihood || 'possible';
+    const lkCls = lk==='likely' ? 'bg-orange-100 text-orange-800' : lk==='unlikely' ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-800';
+    const div = document.createElement('div');
+    div.className = 'p-4 rounded-xl border border-slate-200';
+    div.innerHTML = `
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="font-semibold">${escapeHtml(c.name||'—')}</div>
+        <span class="text-xs px-2 py-0.5 rounded-full ${lkCls}">${escapeHtml(lk)}</span>
+      </div>
+      <div class="text-sm mt-2 text-slate-700 ${cls}">${escapeHtml(why||'')}</div>`;
+    pc.appendChild(div);
+  });
+  if (!(a.possible_conditions||[]).length) pc.innerHTML = `<div class="text-sm text-slate-400">—</div>`;
+
+  // --- Red flags ---
+  const rf = $('healthRedFlags'); rf.innerHTML = '';
+  (a.red_flags||[]).forEach(f => {
+    const sev = f.severity==='high'?'🔴':f.severity==='medium'?'🟠':'🟡';
+    const why = typeof f.why === 'string' ? f.why : txt(f.why);
+    const action = typeof f.action === 'string' ? f.action : txt(f.action);
+    const div = document.createElement('div');
+    div.className = 'red-flag p-4 rounded-r-xl';
+    div.innerHTML = `
+      <div class="font-semibold">${sev} ${escapeHtml(f.title||'—')}</div>
+      <div class="text-sm mt-2 ${cls}"><span class="font-medium text-red-700">Why: </span>${escapeHtml(why||'')}</div>
+      ${action ? `<div class="text-sm mt-1 ${cls}"><span class="font-medium text-green-700">Action: </span>${escapeHtml(action)}</div>` : ''}`;
+    rf.appendChild(div);
+  });
+  if (!(a.red_flags||[]).length) rf.innerHTML = `<div class="green-ok p-4 rounded-r-xl text-sm">✅ No red flags found.</div>`;
+
+  // --- Lifestyle ---
+  const ls = $('lifestyle'); ls.innerHTML = '';
+  (a.lifestyle||[]).forEach(o => {
+    const t = typeof o === 'string' ? o : txt(o);
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 text-sm text-slate-700 ' + cls;
+    div.innerHTML = `<span class="text-teal-600">•</span><span>${escapeHtml(t)}</span>`;
+    ls.appendChild(div);
+  });
+  if (!(a.lifestyle||[]).length) ls.innerHTML = `<div class="text-sm text-slate-400">—</div>`;
+
+  // --- Medications ---
+  const md = $('medications'); md.innerHTML = '';
+  (a.medications||[]).forEach(m => {
+    const purpose = typeof m.purpose === 'string' ? m.purpose : txt(m.purpose);
+    const caution = typeof m.caution === 'string' ? m.caution : txt(m.caution);
+    const div = document.createElement('div');
+    div.className = 'p-3 rounded-xl bg-blue-50 border border-blue-100';
+    div.innerHTML = `
+      <div class="font-semibold">💊 ${escapeHtml(m.name||'—')}</div>
+      ${purpose ? `<div class="text-sm mt-1 text-slate-700 ${cls}">${escapeHtml(purpose)}</div>` : ''}
+      ${caution ? `<div class="text-xs mt-1 text-amber-700 ${cls}">⚠️ ${escapeHtml(caution)}</div>` : ''}`;
+    md.appendChild(div);
+  });
+  if (!(a.medications||[]).length) md.innerHTML = `<div class="text-sm text-slate-400">—</div>`;
+
+  // --- See doctor ---
+  const sd = a.see_doctor || {};
+  $('seeDoctor').className = 'text-slate-700 ' + cls;
+  $('seeDoctor').innerHTML = `<span class="font-semibold">${escapeHtml(sd.when||'—')}</span> — ${escapeHtml(txt(sd)||'')}`;
+  $('specialist').textContent = a.specialist ? `👉 Suggested specialist: ${a.specialist}` : '';
+
+  // --- Questions ---
+  const qs = $('healthQuestions'); qs.innerHTML = '';
+  (a.questions_to_ask||[]).forEach(q => {
+    const text = typeof q.q === 'string' ? q.q : txt(q);
+    const why = typeof q.why === 'string' ? q.why : txt(q.why);
+    const div = document.createElement('div');
+    div.className = 'ask-q p-4 rounded-r-xl';
+    div.innerHTML = `<div class="font-medium ${cls}">❓ ${escapeHtml(text)}</div>${why?`<div class="text-xs text-slate-500 mt-1 ${cls}">${escapeHtml(why)}</div>`:''}`;
+    qs.appendChild(div);
+  });
+
+  // --- Bottom line ---
+  renderBottomLine(a, lang, cls, true);
 }
 
 // Switching language tab: stop speech, use cache or re-analyze
@@ -668,7 +1130,7 @@ $('speakBtn').onclick = () => {
   stopSpeech();
   const a = state.analysis; if (!a) return;
   const parts = [
-    txt(a.verdict),
+    txt(a.verdict || a.severity),
     txt(a.summary),
     txt(a.bottom_line),
   ].filter(Boolean);
@@ -688,7 +1150,7 @@ $('stopSpeakBtn').onclick = stopSpeech;
 function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // initial status
-setStatus('Ready · Groq AI');
+setStatus('Ready');
 </script>
 </body>
 </html>
