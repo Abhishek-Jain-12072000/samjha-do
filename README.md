@@ -229,4 +229,4 @@ The AI may miss nuances, misread values, or make errors. Use this as a starting 
 
 ---
 
-Built by [Abhishek Jain](https://github.com/your-username) · Made for India 🇮🇳
+Built by [Abhishek Jain](https://github.com/your-username) & [Ritee Jain](https://github.com/RiteeJain14) · Made for India 🇮🇳
